@@ -84,6 +84,10 @@ describe('Project structure', () => {
   // Hooks
   assertExists('hooks/obsidian-session-save.js', 'Stop hook script exists');
 
+  // New Quick Win hooks
+  assertExists('hooks/obsidian-context-loader.js', 'Context loader exists');
+  assertExists('hooks/obsidian-gc.js', 'GC script exists');
+
   // Skills
   assertExists('skills/obsidian-memory.md', 'Skill documentation exists');
 
@@ -341,6 +345,63 @@ describe('Context loader', () => {
   assert(cli.includes('function loadLearnings('), 'Context loader loads learnings');
   assert(cli.includes('function loadRecentSessions('), 'Context loader loads recent sessions');
   assert(cli.includes('OBSIDIAN CONTEXT START'), 'Context loader injects formatted context');
+});
+
+describe('Quick Wins: CLI Commands', () => {
+  // ADR
+  assertExists('bin/adr.js', 'ADR command exists');
+  const adr = fs.readFileSync(path.join(PROJECT_ROOT, 'bin/adr.js'), 'utf8');
+  assert(adr.includes('function buildAdr('), 'ADR builds template');
+  assert(adr.includes('function findRelatedNotes('), 'ADR finds related notes');
+  assert(adr.includes('ADR-'), 'ADR uses ADR-NNN format');
+
+  // Remember
+  assertExists('bin/remember.js', 'Remember command exists');
+  const rem = fs.readFileSync(path.join(PROJECT_ROOT, 'bin/remember.js'), 'utf8');
+  assert(rem.includes('function detectType('), 'Remember auto-detects type');
+  assert(rem.includes('function detectImportance('), 'Remember auto-detects importance');
+  assert(rem.includes('function isDuplicate('), 'Remember checks duplicates');
+  assert(rem.includes('function findRelated('), 'Remember finds related notes');
+
+  // Related
+  assertExists('bin/related.js', 'Related notes command exists');
+  const rel = fs.readFileSync(path.join(PROJECT_ROOT, 'bin/related.js'), 'utf8');
+  assert(rel.includes('function findRelatedNotes('), 'Related finds notes');
+  assert(rel.includes('Decisions'), 'Related searches Decisions');
+  assert(rel.includes('Learnings'), 'Related searches Learnings');
+  assert(rel.includes('Sessions'), 'Related searches Sessions');
+
+  // Digest
+  assertExists('bin/digest.js', 'Digest command exists');
+  const dig = fs.readFileSync(path.join(PROJECT_ROOT, 'bin/digest.js'), 'utf8');
+  assert(dig.includes('function buildDigest('), 'Digest builds report');
+  assert(dig.includes('--week'), 'Digest supports --week');
+  assert(dig.includes('--month'), 'Digest supports --month');
+
+  // Load Context
+  assertExists('bin/load-context.js', 'Load context command exists');
+});
+
+describe('Main CLI dispatcher', () => {
+  assertExists('bin/oc-obsidian-mcp.js', 'Main CLI exists');
+
+  const cli = fs.readFileSync(path.join(PROJECT_ROOT, 'bin/oc-obsidian-mcp.js'), 'utf8');
+  assert(cli.includes("'adr'") || cli.includes('"adr"'), 'Main CLI dispatches adr');
+  assert(cli.includes("'remember'") || cli.includes('"remember"'), 'Main CLI dispatches remember');
+  assert(cli.includes("'related'") || cli.includes('"related"'), 'Main CLI dispatches related');
+  assert(cli.includes("'digest'") || cli.includes('"digest"'), 'Main CLI dispatches digest');
+  assert(cli.includes("'session-log'") || cli.includes('"session-log"'), 'Main CLI dispatches session-log');
+  assert(cli.includes("'load-context'") || cli.includes('"load-context"'), 'Main CLI dispatches load-context');
+  assert(cli.includes("'gc'") || cli.includes('"gc"'), 'Main CLI dispatches gc');
+  assert(cli.includes("'setup'") || cli.includes('"setup"'), 'Main CLI dispatches setup');
+});
+
+describe('Auto-learning extraction', () => {
+  const hook = fs.readFileSync(path.join(PROJECT_ROOT, 'hooks/obsidian-session-save.js'), 'utf8');
+  assert(hook.includes('function autoLearn('), 'Hook has autoLearn');
+  assert(hook.includes('function extractKeywords('), 'Hook extracts keywords');
+  assert(hook.includes('function detectPatterns('), 'Hook detects patterns');
+  assert(hook.includes('autoLearn(session)'), 'Hook calls autoLearn in main');
 });
 
 describe('Garbage collector', () => {

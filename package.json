@@ -1,7 +1,7 @@
 {
   "name": "oc-obsidian-mcp",
-  "version": "1.0.0",
-  "description": "Persistent memory for AI agents (OpenCode / Claude Code / Codex) — backed by your Obsidian vault via MCP",
+  "version": "2.0.0",
+  "description": "Intelligent persistent memory for AI agents (OpenCode / Claude Code / Codex) — backed by your Obsidian vault via MCP",
   "keywords": [
     "opencode",
     "obsidian",
@@ -12,32 +12,39 @@
     "codex",
     "persistent-memory",
     "vault",
-    "cli"
+    "cli",
+    "adr",
+    "learning",
+    "digest",
+    "garbage-collection"
   ],
   "homepage": "https://github.com/yourusername/oc-obsidian-mcp",
-  "bugs": {
-    "url": "https://github.com/yourusername/oc-obsidian-mcp/issues"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/yourusername/oc-obsidian-mcp.git"
-  },
+  "bugs": { "url": "https://github.com/yourusername/oc-obsidian-mcp/issues" },
+  "repository": { "type": "git", "url": "https://github.com/yourusername/oc-obsidian-mcp.git" },
   "license": "MIT",
   "author": "Your Name <you@example.com>",
-  "engines": {
-    "node": ">=20.0.0"
-  },
+  "engines": { "node": ">=20.0.0" },
   "main": "bin/oc-obsidian-mcp.js",
   "scripts": {
     "test": "node test/runner.js",
     "test:watch": "node test/runner.js --watch",
     "lint": "npx eslint scripts hooks bin",
     "setup": "pwsh setup.ps1",
-    "session-log": "node bin/session-log.js"
+    "session-log": "node bin/session-log.js",
+    "adr": "node bin/adr.js",
+    "remember": "node bin/remember.js",
+    "related": "node bin/related.js",
+    "digest": "node bin/digest.js",
+    "load-context": "node bin/load-context.js",
+    "gc": "node hooks/obsidian-gc.js"
   },
   "bin": {
     "oc-obsidian-mcp": "bin/oc-obsidian-mcp.js",
-    "session-log": "bin/session-log.js"
+    "session-log": "bin/session-log.js",
+    "oc-adr": "bin/adr.js",
+    "oc-remember": "bin/remember.js",
+    "oc-related": "bin/related.js",
+    "oc-digest": "bin/digest.js"
   },
   "files": [
     "bin/",

@@ -262,6 +262,154 @@ function updateProjectIndex(session) {
   d(`Updated index for ${project}`);
 }
 
+// ─── Auto-Learning Extraction ──────────────────────────
+
+function autoLearn(session) {
+  const keywords = extractKeywords(session.summary);
+  if (keywords.length === 0) return;
+
+  // Detect if this session solved a bug or discovered a pattern
+  const patterns = detectPatterns(session.summary);
+  if (patterns.length === 0) return;
+
+  const learnDir = path.join(VAULT_PATH, FOLDERS.learnings, session.project);
+  ensureDir(learnDir);
+
+  for (const p of patterns) {
+    const slug = p.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const fp = path.join(learnDir, slug + '.md');
+
+    // Skip if already exists
+    if (fs.existsSync(fp)) {
+      d(`Learning already exists: ${p.title}`);
+      continue;
+    }
+
+    const content = [
+      `# ${p.title}`,
+      '',
+      `**Typ:** ${p.type}`,
+      `**Projekt:** ${session.project}`,
+      `**Datum:** ${getDateString()}`,
+      `**Relevanz:** #${p.importance}`,
+      '',
+      '---',
+      '',
+      '## Erkenntnis',
+      '',
+      p.body,
+      '',
+      '---',
+      '',
+      `*Automatisch extrahiert aus Session: ${session.name}*`,
+      ''
+    ].join('\n');
+
+    fs.writeFileSync(fp, content, 'utf8');
+    d(`Auto-learned: ${p.title}`);
+  }
+}
+
+/**
+ * Extract meaningful keywords from summary
+ */
+function extractKeywords(summary) {
+  const stopWords = new Set(['der','die','das','und','ist','ein','eine','in','den','des','mit','von','zu','auf','für','nicht','the','a','an','is','are','was','were','been','have','has','had','do','does','did','to','of','in','for','on','with','at','by','from','this','that','these','those','it','its']);
+  const words = summary.toLowerCase().split(/\W+/).filter(w => w.length > 3 && !stopWords.has(w));
+
+  // Count word frequency
+  const freq = {};
+  for (const w of words) freq[w] = (freq[w] || 0) + 1;
+
+  // Return words mentioned 2+ times
+  return Object.entries(freq)
+    .filter(([, n]) => n >= 2)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 20)
+    .map(([w]) => w);
+}
+
+/**
+ * Heuristic pattern detection from summary
+ */
+function detectPatterns(summary) {
+  const patterns = [];
+  const lower = summary.toLowerCase();
+
+  // Bug fix pattern
+  if (lower.includes('bug') || lower.includes('fehler') || lower.includes('error') || lower.includes('fix')) {
+    const bugTitle = extractBugTitle(summary);
+    if (bugTitle && bugTitle.length > 10) {
+      patterns.push({
+        title: bugTitle,
+        type: 'Bugfix',
+        importance: 'medium',
+        body: extractFirstParagraph(summary, 300)
+      });
+    }
+  }
+
+  // Pattern/Refactor detection
+  if (lower.includes('pattern') || lower.includes('refactor') || lower.includes('architecture')) {
+    const patternTitle = extractPatternTitle(summary);
+    if (patternTitle && patternTitle.length > 10) {
+      patterns.push({
+        title: patternTitle,
+        type: 'Pattern',
+        importance: 'medium',
+        body: extractFirstParagraph(summary, 300)
+      });
+    }
+  }
+
+  // New tool/tech discovery
+  if (lower.includes('new') && (lower.includes('library') || lower.includes('tool') || lower.includes('package') || lower.includes('npm'))) {
+    const toolTitle = extractToolTitle(summary);
+    if (toolTitle && toolTitle.length > 10) {
+      patterns.push({
+        title: toolTitle,
+        type: 'Code-Snippet',
+        importance: 'low',
+        body: extractFirstParagraph(summary, 300)
+      });
+    }
+  }
+
+  return patterns;
+}
+
+function extractBugTitle(summary) {
+  const lines = summary.split('\n').filter(l => l.trim().length > 10);
+  for (const line of lines) {
+    const clean = line.replace(/^[#*-]+\s*/, '').trim();
+    if (/bug|fehler|fix|error/i.test(clean)) return clean.slice(0, 100);
+  }
+  return null;
+}
+
+function extractPatternTitle(summary) {
+  const lines = summary.split('\n').filter(l => l.trim().length > 10);
+  for (const line of lines) {
+    const clean = line.replace(/^[#*-]+\s*/, '').trim();
+    if (/pattern|refactor|architecture|design/i.test(clean)) return clean.slice(0, 100);
+  }
+  return null;
+}
+
+function extractToolTitle(summary) {
+  const lines = summary.split('\n').filter(l => l.trim().length > 10);
+  for (const line of lines) {
+    const clean = line.replace(/^[#*-]+\s*/, '').trim();
+    if (/library|tool|package|npm|install/i.test(clean)) return clean.slice(0, 100);
+  }
+  return null;
+}
+
+function extractFirstParagraph(summary, maxLen) {
+  const paragraphs = summary.split(/\n{2,}/).filter(p => p.trim().length > 30);
+  return paragraphs[0] ? paragraphs[0].trim().slice(0, maxLen) : summary.trim().slice(0, maxLen);
+}
+
 // ─── Garbage Collection (basic) ──────────────────────────
 
 function shouldRunGC() {
@@ -343,7 +491,10 @@ function main() {
   // 2. Update project index
   updateProjectIndex(session);
 
-  // 3. Run GC (once per day)
+  // 3. Auto-extract learnings from session
+  autoLearn(session);
+
+  // 4. Run GC (once per day)
   if (shouldRunGC()) {
     runGC(session.project);
   }

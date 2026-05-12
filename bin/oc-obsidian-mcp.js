@@ -1,43 +1,69 @@
 #!/usr/bin/env node
 /**
- * OC-Obsidian-MCP: Main CLI Entry Point
+ * OC-Obsidian-MCP v2.0: Main CLI Entry Point
  *
  * Usage:
  *   oc-obsidian-mcp <command> [options]
  *
  * Commands:
- *   session-log   Save current session summary to Obsidian vault
- *   setup         Run interactive setup (vault path, config, hooks)
- *   help          Show this help message
- *
- * Examples:
- *   oc-obsidian-mcp session-log
- *   oc-obsidian-mcp setup
- *   npx oc-obsidian-mcp session-log
+ *   session-log                       Save current session summary
+ *   adr "Title"                       Create Architecture Decision Record
+ *   remember "Title"                  Save reusable learning/pattern
+ *   related "query"                   Find related notes via keyword-overlap
+ *   digest --project P --week         Generate weekly digest
+ *   load-context                      Load project context from Obsidian
+ *   gc                                Run garbage collection
+ *   setup                             Interactive setup
  */
 
 const fs = require('fs');
 const path = require('path');
 
+const VERSION = '2.0.0';
+
 function showHelp() {
   console.log(`
-OC-Obsidian-MCP v1.0.0 — Persistent memory for AI agents
+🧠 OC-Obsidian-MCP v${VERSION} — Intelligent memory for AI agents
 
 Usage: oc-obsidian-mcp <command> [options]
 
-Commands:
-  session-log    Save current session summary to Obsidian vault
-  setup            Run interactive setup (PowerShell script)
+Memory Commands:
+  session-log            Save session summary to vault
+  adr "Title"            Architecture Decision Record     [--project NAME] [--status accepted]
+  remember "Title"       Save reusable pattern/bugfix      [--type Bugfix] [--code "fn()"]
+
+Discovery Commands:
+  related "query"        Find related notes                [--project NAME] [--limit 10]
+  load-context           Load project context from vault   [--project NAME]
+
+Analysis Commands:
+  digest                 Generate weekly/monthly digest    [--project NAME] [--week|--month]
+  gc                     Garbage collect old data          [--project NAME] [--dry-run]
+
+Setup:
+  setup                  Interactive setup (PowerShell)
 
 Options:
-  -h, --help       Show this help
-  -v, --version    Show version
+  -h, --help             Show this help
+  -v, --version          Show version
+  --project NAME         Target project (auto-detected if omitted)
 
 Examples:
-  oc-obsidian-mcp session-log     # Manual session logging
-  oc-obsidian-mcp setup           # Interactive configuration
-  npx oc-obsidian-mcp session-log # Without installing
+  oc-obsidian-mcp adr "Use Kafka for event streaming" --project MyApp
+  oc-obsidian-mcp remember "Memory leak fix in React useEffect"
+  oc-obsidian-mcp digest --project PCAP2KML --week
+  oc-obsidian-mcp related "auth pattern"
 `);
+}
+
+function delegate(script) {
+  const binDir = path.dirname(__filename);
+  const full = path.join(binDir, script);
+  if (!fs.existsSync(full)) {
+    console.error(`Error: ${script} not found. Corrupt installation?`);
+    process.exit(1);
+  }
+  require(full);
 }
 
 function main() {
@@ -50,47 +76,40 @@ function main() {
   }
 
   if (command === '-v' || command === '--version') {
-    console.log('oc-obsidian-mcp v1.0.0');
+    console.log(`oc-obsidian-mcp v${VERSION}`);
     process.exit(0);
   }
 
-  const binDir = path.dirname(__filename);
-  
-  switch (command) {
-    case 'session-log': {
-      // Delegate to session-log.js
-      const sessionLogPath = path.join(binDir, 'session-log.js');
-      require(sessionLogPath);
-      break;
-    }
+  // Strip leading "/" for slash-command compatibility
+  const cmd = command.startsWith('/') ? command.slice(1) : command;
 
-    case 'setup': {
-      const setupPath = path.join(binDir, '..', 'setup.ps1');
-      if (!fs.existsSync(setupPath)) {
-        console.error('Error: setup.ps1 not found. Is oc-obsidian-mcp installed correctly?');
-        process.exit(1);
-      }
-      console.log('Running setup.ps1...');
-      console.log(`  ${setupPath}`);
-      console.log('');
-      const { execSync } = require('child_process');
-      try {
-        execSync(`pwsh "${setupPath}"`, { stdio: 'inherit' });
-      } catch {
-        console.error('');
-        console.error('PowerShell not found. Run setup manually:');
-        console.error('  pwsh setup.ps1 -VaultPath "/path/to/vault"');
-        process.exit(1);
-      }
-      break;
-    }
-
-    default:
-      console.error(`Unknown command: "${command}"`);
-      console.error('');
-      showHelp();
-      process.exit(1);
+  const cmds = ['adr', 'remember', 'related', 'digest', 'session-log', 'load-context', 'gc'];
+  if (cmds.includes(cmd)) {
+    delegate(`${cmd}.js`);
+    return;
   }
+
+  // setup dispatches to PowerShell
+  if (cmd === 'setup') {
+    const setupPath = path.join(path.dirname(__filename), '..', 'setup.ps1');
+    if (!fs.existsSync(setupPath)) {
+      console.error('Error: setup.ps1 not found. Run from project root or reinstall.');
+      process.exit(1);
+    }
+    console.log(`Running setup: ${setupPath}\n`);
+    try {
+      require('child_process').execSync(`pwsh "${setupPath}"`, { stdio: 'inherit' });
+    } catch {
+      console.error('\nPowerShell not found. Run manually: pwsh setup.ps1 -VaultPath "/path/to/vault"');
+      process.exit(1);
+    }
+    return;
+  }
+
+  console.error(`Unknown command: "${command}"`);
+  console.error('');
+  showHelp();
+  process.exit(1);
 }
 
 main();
