@@ -1,151 +1,186 @@
-# Obsidian Memory Skill
+# Obsidian Memory Skill v2.0
 
-Use Obsidian as a persistent memory layer for OpenCode / Claude Code / Codex CLI agent sessions.
+Intelligenter, projekt-isolierter, bidirektionaler Speicher für OpenCode / Claude Code / Codex CLI Agent-Sessions — basierend auf Hermes-Agent-Architektur.
 
 ## Requirements
 
 - Node.js v20+
-- An Obsidian vault directory
-- `mcp-obsidian-vault` (installed automatically via npx)
+- Obsidian Vault (lokal)
+- `mcp-obsidian-vault` (via npx)
 
-## Vault Folder Structure
+## Vault Folder Structure (projekt-isoliert)
 
 ```
 MyVault/
 └── OpenCode/
-    ├── Sessions/          ← Session logs (auto via Stop Hook in Claude Code, manual via /session-log)
-    ├── Decisions/         ← Architecture Decision Records (ADRs)
-    ├── Learnings/         ← Reusable patterns, fixes, code snippets
-    └── Context/           ← Project context notes (read by agents at session start)
+    ├── Sessions/
+    │   ├── PCAP2KML/          ← Sessions nur für dieses Projekt
+    │   │   ├── 2026-05-12.md
+    │   │   └── index.md       ← laufende Zusammenfassung
+    │   ├── HomeAssistant/
+    │   └── _global/           ← fallback wenn Projekt unbekannt
+    ├── Decisions/
+    │   └── PCAP2KML/          ← ADRs pro Projekt
+    │       └── ADR-001-title.md
+    ├── Learnings/
+    │   └── PCAP2KML/          ← Patterns pro Projekt
+    ├── Context/
+    │   ├── _bootstrap.md      ← globale Agent-Anweisungen
+    │   └── PCAP2KML/          ← Projekt-Kontext
+    │       └── context.md
+    └── Archive/
+        ├── Sessions/          ← archiviert >30 Tage
+        └── Learnings/         ← archivierte Learnings
 ```
-
-## Available MCP Tools
-
-All tools are provided by `mcp-obsidian-vault`:
-
-| Tool | Description |
-|---|---|
-| `read_note(path)` | Read a note from vault |
-| `write_note(path, content)` | Create a new note |
-| `append_note(path, content)` | Append content to an existing note |
-| `search_notes(query)` | Full-text search across vault |
-| `list_notes(path)` | List notes in a directory |
-| `delete_note(path)` | Delete a note (requires `confirm: true`) |
-| `read_daily_note(date)` | Read a daily note |
-| `append_daily_note(content)` | Append to the daily note |
-| `search_tags(tag)` | Search notes by tag |
-| `resolve_wikilink(link)` | Resolve a `[[wikilink]]` |
-| `backlinks(path)` | Find all backlinks to a note |
-| `resolve_frontmatter(path)` | Read YAML frontmatter |
-| `git_sync(action)` | Git operations (commit, push, pull, status) |
 
 ## Commands
 
-### 1. Manual Session Log (`/session-log`)
+### `oc-obsidian-mcp adr "Titel"` — Architecture Decision Record
 
-Save the current session summary to the vault **now**:
+```
+/adr "Redis als Cache-Layer für API-Responses" --project MyApp --status accepted
+```
+
+Erstellt automatisch:
+- ADR-NNN-Nummerierung
+- Status (Vorgeschlagen/Akzeptiert/Verworfen)
+- Kontext, Entscheidung, Alternativen, Konsequenzen
+- Auto-verknüpfte Related Notes via Keyword-Overlap
+
+### `oc-obsidian-mcp remember "Titel"` — Learning speichern
+
+```
+/remember "Memory leak in React useEffect cleanup" --type Bugfix
+/remember "Kafka Consumer Group pattern" --type Pattern --code "const consumer = kafka.consumer({ groupId: 'my-group' })"
+```
+
+- Auto-Typ-Erkennung (Bugfix, Pattern, Code-Snippet, Architektur, Testing)
+- Auto-Importance-Detection (#high, #medium, #low)
+- Duplikat-Check vor Speicherung
+- Related Notes Verlinkung
+
+### `oc-obsidian-mcp related "query"` — Verwandte Notizen finden
+
+```
+/related "auth pattern"
+/related "JWT authentication" --project MyApp --limit 10
+```
+
+Durchsucht Decisions, Learnings und Sessions projekt-übergreifend mit:
+- Keyword-Matching + Title-Boost
+- Recency-Bonus (neuere Notes ranken höher)
+- Relevanz-Snippets
+
+### `oc-obsidian-mcp digest` — Weekly/Monthly Digest
+
+```
+/digest --project PCAP2KML --week
+/digest --project PCAP2KML --month
+/digest --project PCAP2KML --from 2026-05-01 --to 2026-05-12
+```
+
+Generiert strukturierten Markdown-Digest mit:
+- Session-Anzahl und Zeichenstatistik
+- Tool-Nutzungs-Übersicht
+- Session-Details (Datum, Tasks)
+- Neue Learnings mit Typ und Relevanz
+
+### `oc-obsidian-mcp session-log` — Manueller Session-Log
 
 ```
 /session-log
 ```
 
-This reads the latest session file (Claude Code `.tmp` or OpenCode `.json`) and appends the extracted summary to:
+Liest neueste Session-Datei, extrahiert ECC:SUMMARY, speichert projekt-isoliert.
+
+### `oc-obsidian-mcp load-context` — Kontext laden
 
 ```
-OpenCode/Sessions/YYYY-MM-DD.md
+/load-context --project PCAP2KML
 ```
 
-**Note:** The session file must exist in one of these directories:
-- Claude Code: `~/.claude/session-data/`
-- OpenCode: `~/.opencode/sessions/` (if supported)
+Lädt bei Session-Start:
+1. `OpenCode/Context/_bootstrap.md`
+2. Projekt-Kontext (`OpenCode/Context/{project}/`)
+3. Letzte 5 ADRs
+4. Top-10 Learnings (nach Relevanz)
+5. Letzte 3 Sessions
 
-### 2. Auto Session Logging (via Stop Hook) — Claude Code Only
+Formatiert als `🧠 Obsidian Context for {project}`-Block.
 
-After setup, every session's summary is **automatically** appended to the daily note when Claude Code fires the `Stop` hook.
-
-This requires:
-1. Running `setup.ps1` and installing the hook
-2. The hook script copied to `~/.claude/scripts/hooks/obsidian-session-save.js`
-3. `hooks.json` containing the `stop:obsidian-session-save` entry
-
-**Limitation:** OpenCode does not currently support a Stop hook. Use `/session-log` manually instead.
-
-### 3. Save a Decision (`/adr`)
-
-Trigger the agent to save an Architecture Decision Record:
+### `oc-obsidian-mcp gc` — Garbage Collection
 
 ```
-/adr "Why we chose SQLite over PostgreSQL for the embedded database"
+/gc --dry-run                    # Preview was gelöscht würde
+/gc --project PCAP2KML           # Nur ein Projekt
 ```
 
-The agent writes a structured ADR to `OpenCode/Decisions/`.
+Regeln:
+- Sessions >30 Tage → Archive
+- Learnings `#low` >60d → Löschen
+- Learnings `#medium` >180d → Archivieren
+- Learnings `#high` → Nie löschen
+- Duplikate >80% Similarity → Mergen
 
-Template:
-```markdown
-# ADR-NNN: Title
-
-**Status:** Proposed | Accepted | Rejected
-**Date:** YYYY-MM-DD
-
-## Context
-[Why was this decision needed?]
-
-## Decision
-[What was decided?]
-
-## Consequences
-[Positive and negative impacts]
-```
-
-### 4. Save a Learning (`/remember`)
-
-When you solve something non-trivial:
+### `oc-obsidian-mcp setup` — Setup
 
 ```
-/remember "Rust borrow checker workaround for self-referential structs"
+/setup
 ```
 
-The agent writes the pattern to `OpenCode/Learnings/`.
+Interaktives Setup (PowerShell).
 
-Template:
-```markdown
-# [Title]
+## Automation
 
-**Type:** Bugfix | Pattern | Code-Snippet | Architecture
-**Project:** [Project name]
-**Date:** YYYY-MM-DD
+### Stop Hook (Claude Code)
 
-## Problem
-[Short description]
+Nach jeder Session wird automatisch:
+1. Session-Summary gespeichert (projekt-isoliert)
+2. Neue Learnings aus der Session extrahiert (Bugs, Patterns, Tools)
+3. Projekt-Index aktualisiert
+4. GC getriggert (1x pro Tag)
 
-## Solution
-[How was it solved?]
+### Auto-Learning (passiv)
 
-## Code
-```[language]
-// relevant code example
-```
-```
+Der Hook analysiert jede Session auf:
+- Bugfixes → `"Typ: Bugfix"` Learning
+- Refactorings → `"Typ: Pattern"` Learning
+- Neue Tools/Libraries → `"Typ: Code-Snippet"` Learning
 
-### 5. Load Context from Obsidian
+Keine manuelle `/remember` Eingabe nötig für Routine-Erkenntnisse.
 
-Place project context notes in `OpenCode/Context/`. Agents can read them explicitly, or they can be loaded automatically during session bootstrap.
+## MCP Tools (mcp-obsidian-vault)
 
-## Integration Notes
+| Tool | Beschreibung |
+|---|---|
+| `read_note(path)` | Note lesen |
+| `write_note(path, content)` | Note erstellen |
+| `append_note(path, content)` | An Note anhängen |
+| `search_notes(query)` | Volltextsuche |
+| `list_notes(path)` | Ordner auflisten |
+| `delete_note(path)` | Note löschen |
+| `read_daily_note(date)` | Daily Note lesen |
+| `append_daily_note(content)` | An Daily Note anhängen |
+| `git_sync(action)` | Git Sync |
 
-- **OpenCode**: Register via `~/.opencode/mcp.json` or `~/.config/opencode/opencode.json`
-- **Claude Desktop**: Register via `claude_desktop_config.json`
-- **Claude Code**: Use `claude mcp add obsidian -- <command>` + Stop hook via `setup.ps1`
-- **Codex CLI**: Register in `Codex.toml`
-
-## CLI Commands (npm scripts)
+## CLI (npm scripts)
 
 ```bash
-# Manual session log
-npx oc-obsidian-mcp session-log
-
-# Or via package script (after install)
-npm run session-log
+npm test              # 151 Tests
+npm run session-log   # Manueller Session-Log
+npm run adr -- "Titel"
+npm run remember -- "Titel"
+npm run related -- "query"
+npm run digest -- --week
+npm run load-context
+npm run gc -- --dry-run
+npm run setup
 ```
 
-See the [README](../README.md) for full setup instructions.
+## Roadmap
+
+**v2.5 (Agent Autonomy):** Embedding-Suche, Auto-Tagging, Relevanz-Scoring, Konflikt-Erkennung, Skill-Evolution
+**v3.0 (Multi-Agent):** Agent-Profile, Handoff-Notes, Team-Learnings, Performance-Tracking
+**v4.0 (Ecosystem):** Obsidian-Dashboard, Linear/Jira-Sync, Chrome Extension, Mobile Companion
+
+Siehe `OpenCode/Decisions/ADR-001-intelligent-obsidian-memory-architecture.md` für die vollständige Architektur-Entscheidung.
