@@ -263,20 +263,18 @@ describe('.gitignore security', () => {
 });
 
 describe('Dry-run: hook script', () => {
-  // Create a temp vault and test the hook
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ocobsidian-test-'));
   const sessionDir = path.join(tmpDir, 'session-data');
   const vaultDir = path.join(tmpDir, 'vault');
-  const sessionsDir = path.join(sessionDir, '2026-05-12-session.tmp');
 
   try {
-    // Create test session file
-    fs.mkdirSync(path.dirname(sessionsDir), { recursive: true });
+    // Create test session file WITH project name (PCAP2KML)
+    const sessionsFile = path.join(sessionDir, '2026-05-12-PCAP2KML-session.tmp');
+    fs.mkdirSync(path.dirname(sessionsFile), { recursive: true });
     fs.mkdirSync(path.join(vaultDir, 'OpenCode', 'Sessions'), { recursive: true });
 
-    fs.writeFileSync(sessionsDir, 'Test session content\n<!-- ECC:SUMMARY:START -->\nThis is a session summary\n<!-- ECC:SUMMARY:END -->\n', 'utf8');
+    fs.writeFileSync(sessionsFile, 'Test session content\n<!-- ECC:SUMMARY:START -->\nThis is a session summary\n<!-- ECC:SUMMARY:END -->\n', 'utf8');
 
-    // Run hook with env vars
     const child = require('child_process').spawnSync('node', [
       path.join(PROJECT_ROOT, 'hooks/obsidian-session-save.js')
     ], {
@@ -294,20 +292,67 @@ describe('Dry-run: hook script', () => {
 
     assertEqual(child.status, 0, 'Hook exits with code 0');
 
-    const dailyNote = path.join(vaultDir, 'OpenCode', 'Sessions', `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}.md`);
+    const today = `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}-${String(new Date().getDate()).padStart(2,'0')}.md`;
+    // NEW: project-isolated path
+    const projectNote = path.join(vaultDir, 'OpenCode', 'Sessions', 'PCAP2KML', today);
 
-    if (fs.existsSync(dailyNote)) {
-      const content = fs.readFileSync(dailyNote, 'utf8');
-      assert(content.includes('This is a session summary'), 'Daily note contains session summary');
+    if (fs.existsSync(projectNote)) {
+      const content = fs.readFileSync(projectNote, 'utf8');
+      assert(content.includes('This is a session summary'), 'Project note contains session summary');
+      assert(content.includes('PCAP2KML'), 'Project note is tagged with project name');
     } else {
-      assert(false, `Daily note not created at ${dailyNote}. Output: ${child.stderr || child.stdout}`);
+      assert(false, `Project note not created at ${projectNote}. Output: ${child.stderr || child.stdout}`);
     }
+
+    // Check index exists
+    const indexPath = path.join(vaultDir, 'OpenCode', 'Sessions', 'PCAP2KML', 'index.md');
+    assert(fs.existsSync(indexPath), 'Project index created');
   } catch (e) {
     assert(false, `Dry-run failed: ${e.message}`);
   } finally {
-    // Cleanup
     try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
   }
+});
+
+describe('Project detection', () => {
+  const detectProject = (filename) => {
+    const basename = path.basename(filename, '-session.tmp');
+    const match = basename.match(/^\d{4}-\d{2}-\d{2}-(.+)$/);
+    if (match && match[1] && match[1] !== 'session' && match[1] !== 'claude') {
+      return match[1];
+    }
+    return '_global';
+  };
+
+  assertEqual(detectProject('2026-05-12-PCAP2KML-session.tmp'), 'PCAP2KML', 'Detects PCAP2KML from filename');
+  assertEqual(detectProject('2026-05-12-HomeAssistant-session.tmp'), 'HomeAssistant', 'Detects HomeAssistant');
+  assertEqual(detectProject('2026-05-12-session.tmp'), '_global', 'Falls back to _global for generic');
+  assertEqual(detectProject('2026-05-12-claude-session.tmp'), '_global', 'Falls back to _global for claude');
+});
+
+describe('Context loader', () => {
+  assertExists('hooks/obsidian-context-loader.js', 'Context loader script exists');
+
+  const cli = fs.readFileSync(path.join(PROJECT_ROOT, 'hooks/obsidian-context-loader.js'), 'utf8');
+  assert(cli.includes('function detectProject()'), 'Context loader detects project');
+  assert(cli.includes('function loadBootstrap()'), 'Context loader loads bootstrap');
+  assert(cli.includes('function loadProjectContext('), 'Context loader loads project context');
+  assert(cli.includes('function loadDecisions('), 'Context loader loads decisions');
+  assert(cli.includes('function loadLearnings('), 'Context loader loads learnings');
+  assert(cli.includes('function loadRecentSessions('), 'Context loader loads recent sessions');
+  assert(cli.includes('OBSIDIAN CONTEXT START'), 'Context loader injects formatted context');
+});
+
+describe('Garbage collector', () => {
+  assertExists('hooks/obsidian-gc.js', 'GC script exists');
+
+  const gc = fs.readFileSync(path.join(PROJECT_ROOT, 'hooks/obsidian-gc.js'), 'utf8');
+  assert(gc.includes('function archiveSessions('), 'GC has archiveSessions');
+  assert(gc.includes('function cleanLearnings('), 'GC has cleanLearnings');
+  assert(gc.includes('function similarity('), 'GC has similarity check for merging');
+  assert(gc.includes('--dry-run'), 'GC supports dry-run');
+  assert(gc.includes('THRESHOLDS.sessionArchive'), 'GC has session archive threshold');
+  assert(gc.includes('THRESHOLDS.lowDelete'), 'GC has low-importance delete threshold');
 });
 
 // ─── Summary ────────────────────────────────────────────

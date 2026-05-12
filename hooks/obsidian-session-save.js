@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * OC-Obsidian-MCP: Session Save Hook
+ * OC-Obsidian-MCP: Intelligent Session Save Hook
  *
  * Persists agent session summaries directly to the Obsidian vault filesystem.
- * Runs as a Stop hook in OpenCode (via hooks.json).
+ * Project-isolated: Sessions are stored per-project (detected from session filename + git worktree).
  *
  * Cross-platform (Windows, macOS, Linux).
  *
@@ -18,16 +18,15 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { execSync } = require('child_process');
-const HOOK_SCRIPT = process.argv[1] || __filename;
 
 // ─── Load .mcp-env ──────────────────────────────────────
+
+const HOOK_SCRIPT = process.argv[1] || __filename;
 
 function loadMcpEnv() {
   const scriptDir = path.dirname(HOOK_SCRIPT);
   const envFile = path.join(scriptDir, '..', 'config', '.mcp-env');
-
   if (!fs.existsSync(envFile)) return;
-
   const raw = fs.readFileSync(envFile, 'utf8');
   for (const line of raw.split(/\r?\n/)) {
     const trimmed = line.trim();
@@ -36,9 +35,7 @@ function loadMcpEnv() {
     if (eq === -1) continue;
     const key = trimmed.substring(0, eq).trim();
     const val = trimmed.substring(eq + 1).trim();
-    if (!process.env[key]) {
-      process.env[key] = val;
-    }
+    if (!process.env[key]) process.env[key] = val;
   }
 }
 
@@ -47,11 +44,16 @@ loadMcpEnv();
 // ─── Configuration ──────────────────────────────────────
 
 const VAULT_PATH = process.env.OBSIDIAN_VAULT_PATH || '';
-const DAILY_FOLDER = process.env.DAILY_NOTE_FOLDER || 'OpenCode/Sessions';
 const SESSIONS_DIR = process.env.SESSIONS_DIR || path.join(os.homedir(), '.claude', 'session-data');
 const GIT_AUTO_SYNC = process.env.GIT_AUTO_SYNC !== 'false' && process.env.GIT_AUTO_SYNC !== '0';
 const DEBUG = process.env.DEBUG_HOOK === '1';
-const TIMEOUT_MS = parseInt(process.env.MCP_TIMEOUT_MS || '15000', 10);
+
+const FOLDERS = {
+  sessions: process.env.DAILY_NOTE_FOLDER || 'OpenCode/Sessions',
+  decisions: process.env.DECISIONS_FOLDER || 'OpenCode/Decisions',
+  learnings: process.env.DISCOVERIES_FOLDER || 'OpenCode/Learnings',
+  archive: 'OpenCode/Archive',
+};
 
 // ─── Utilities ──────────────────────────────────────────
 
@@ -69,26 +71,30 @@ function getTimeString() {
   return `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`;
 }
 
+function ensureDir(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+}
+
 function gitTopLevel(cwd) {
   try {
     return execSync('git rev-parse --show-toplevel', { encoding:'utf8', timeout:3000, cwd, stdio:['pipe','pipe','ignore'] }).trim();
   } catch { return null; }
 }
 
-function getProjectName() {
+function getGitProjectName(cwd) {
   try {
-    const top = execSync('git rev-parse --show-toplevel', { encoding:'utf8', timeout:3000, stdio:['pipe','pipe','ignore'] });
-    return path.basename(top.trim());
-  } catch { return 'unknown'; }
+    const top = execSync('git rev-parse --show-toplevel', { encoding:'utf8', timeout:3000, cwd, stdio:['pipe','pipe','ignore'] }).trim();
+    return path.basename(top);
+  } catch { return null; }
 }
 
-function getBranch() {
+function getGitBranch(cwd) {
   try {
-    return execSync('git rev-parse --abbrev-ref HEAD', { encoding:'utf8', timeout:3000, stdio:['pipe','pipe','ignore'] }).trim();
+    return execSync('git rev-parse --abbrev-ref HEAD', { encoding:'utf8', timeout:3000, cwd, stdio:['pipe','pipe','ignore'] }).trim();
   } catch { return 'unknown'; }
 }
-
-// ─── Git Auto-Sync ──────────────────────────────────────
 
 function gitAutoSync(cwd) {
   if (!GIT_AUTO_SYNC) return;
@@ -109,49 +115,32 @@ function gitAutoSync(cwd) {
   }
 }
 
-// ─── Daily Note IO ──────────────────────────────────────
+// ─── Project Detection ───────────────────────────────────
 
-function getDailyNotePath() {
-  const today = getDateString();
-  return path.join(VAULT_PATH, DAILY_FOLDER, `${today}.md`);
-}
-
-function ensureDir(dirPath) {
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
+/**
+ * Detect project name from:
+ * 1. Session filename (e.g., "2026-05-09-PCAP2KML-session.tmp")
+ * 2. Git worktree (if session dir is inside a git repo)
+ * 3. Fallback to "_global"
+ */
+function detectProject(sessionFilePath) {
+  const basename = path.basename(sessionFilePath, '-session.tmp');
+  // Match: YYYY-MM-DD-PROJECT-session.tmp
+  const match = basename.match(/^\d{4}-\d{2}-\d{2}-(.+)$/);
+  if (match && match[1] && match[1] !== 'session' && match[1] !== 'claude') {
+    return match[1];
   }
+
+  // Fallback: try git
+  const gitProject = getGitProjectName(path.dirname(sessionFilePath));
+  if (gitProject) return gitProject;
+
+  return '_global';
 }
 
-function appendToDailyNote(summary) {
-  const notePath = getDailyNotePath();
-  const dir = path.dirname(notePath);
-  ensureDir(dir);
+// ─── Session Discovery ─────────────────────────────────
 
-  const time = getTimeString();
-  const project = getProjectName();
-  const branch = getBranch();
-
-  const entry = [
-    '',
-    `## Session — ${time}`,
-    `**Project:** ${project} \`${branch}\``,
-    '',
-    summary,
-    ''
-  ].join('\n');
-
-  fs.appendFileSync(notePath, entry, { encoding:'utf8' });
-  d(`Appended to ${notePath}`);
-
-  // Git sync
-  gitAutoSync(dir);
-
-  return true;
-}
-
-// ─── Session Summary Extraction ─────────────────────────
-
-function extractLatestSessionSummary() {
+function findLatestSession() {
   if (!fs.existsSync(SESSIONS_DIR)) {
     d(`Sessions dir not found: ${SESSIONS_DIR}`);
     return null;
@@ -164,17 +153,160 @@ function extractLatestSessionSummary() {
 
   if (files.length === 0) return null;
 
-  const latest = path.join(SESSIONS_DIR, files[0]);
-  const content = fs.readFileSync(latest, 'utf8');
+  const latestFile = files[0];
+  const fullPath = path.join(SESSIONS_DIR, latestFile);
+  const project = detectProject(fullPath);
+  const content = fs.readFileSync(fullPath, 'utf8');
 
-  // Try to extract ECC summary block
+  return {
+    file: fullPath,
+    name: latestFile,
+    project,
+    content
+  };
+}
+
+// ─── Summary Extraction ──────────────────────────────────
+
+function extractSummary(content) {
+  // 1. ECC summary block (Claude Code format)
   const summaryMatch = content.match(
     /<!-- ECC:SUMMARY:START -->([\s\S]*?)<!-- ECC:SUMMARY:END -->/
   );
-  if (summaryMatch) return summaryMatch[1].trim();
+  if (summaryMatch) {
+    const summary = summaryMatch[1].trim();
+    d('Extracted ECC session summary');
+    return summary;
+  }
 
-  // Fallback: last 500 chars
-  return content.slice(-500).trim();
+  // 2. OpenCode JSON format
+  try {
+    const json = JSON.parse(content);
+    if (json.summary) return String(json.summary).trim();
+  } catch { /* not JSON */ }
+
+  // 3. Fallback: first 1500 chars (header section)
+  const header = content.slice(0, 1500).trim();
+  d('Fallback: using first 1500 chars as summary');
+  return header;
+}
+
+// ─── Vault IO (Project-Isolated) ─────────────────────────
+
+function getNoteDir(project) {
+  return path.join(VAULT_PATH, FOLDERS.sessions, project);
+}
+
+function getNotePath(project) {
+  return path.join(getNoteDir(project), `${getDateString()}.md`);
+}
+
+function getIndexPath(project) {
+  return path.join(getNoteDir(project), 'index.md');
+}
+
+function appendToProjectNote(session) {
+  const project = session.project;
+  const notePath = getNotePath(project);
+  const noteDir = path.dirname(notePath);
+  ensureDir(noteDir);
+
+  const time = getTimeString();
+  const branch = getGitBranch(process.cwd());
+
+  const entry = [
+    '',
+    `## Session — ${time}`,
+    `**Project:** ${project} \`${branch}\``,
+    '',
+    session.summary,
+    ''
+  ].join('\n');
+
+  fs.appendFileSync(notePath, entry, { encoding:'utf8' });
+  d(`Appended to ${project}: ${path.basename(notePath)}`);
+
+  // Git sync at the vault level
+  gitAutoSync(VAULT_PATH);
+
+  return notePath;
+}
+
+function updateProjectIndex(session) {
+  const project = session.project;
+  const indexPath = getIndexPath(project);
+  const indexDir = path.dirname(indexPath);
+  ensureDir(indexDir);
+
+  const today = getDateString();
+  const entryLine = `- **${today}** — ${session.fileName} (${Math.round(session.summary.length / 10) / 10}k chars)`;
+
+  let existing = '';
+  if (fs.existsSync(indexPath)) {
+    existing = fs.readFileSync(indexPath, 'utf8');
+  }
+
+  // Update header if it exists
+  const headerRegex = /^(# .+)\n\n/m;
+  let updated = existing;
+  if (!updated) {
+    updated = `# Session Index — ${project}\n\n${entryLine}\n`;
+  } else if (updated.includes(entryLine)) {
+    d('Index already has entry for today');
+    return;
+  } else {
+    updated += '\n' + entryLine + '\n';
+  }
+
+  fs.writeFileSync(indexPath, updated, { encoding:'utf8' });
+  d(`Updated index for ${project}`);
+}
+
+// ─── Garbage Collection (basic) ──────────────────────────
+
+function shouldRunGC() {
+  // Run GC once per day
+  const gcFlag = path.join(VAULT_PATH, FOLDERS.sessions, '.last-gc');
+  if (!fs.existsSync(gcFlag)) return true;
+
+  const last = new Date(fs.readFileSync(gcFlag, 'utf8'));
+  const now = new Date();
+  const hours = (now - last) / (1000 * 60 * 60);
+  return hours >= 24;
+}
+
+function runGC(project) {
+  d('Running garbage collection...');
+
+  const sessionsDir = getNoteDir(project);
+  if (!fs.existsSync(sessionsDir)) return;
+
+  const files = fs.readdirSync(sessionsDir)
+    .filter(f => f.endsWith('.md') && f !== 'index.md');
+
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 30);
+
+  let archived = 0;
+  for (const f of files) {
+    // Parse date from filename: YYYY-MM-DD.md
+    const dateMatch = f.match(/^(\d{4})-(\d{2})-(\d{2})\.md$/);
+    if (!dateMatch) continue;
+
+    const fileDate = new Date(`${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`);
+    if (fileDate < cutoff) {
+      const src = path.join(sessionsDir, f);
+      const archiveDir = path.join(VAULT_PATH, FOLDERS.archive, 'Sessions', project);
+      ensureDir(archiveDir);
+      fs.renameSync(src, path.join(archiveDir, f));
+      archived++;
+    }
+  }
+
+  d(`GC archived ${archived} sessions for ${project}`);
+
+  // Touch flag
+  fs.writeFileSync(path.join(VAULT_PATH, FOLDERS.sessions, '.last-gc'), new Date().toISOString(), { encoding:'utf8' });
 }
 
 // ─── Main ───────────────────────────────────────────────
@@ -190,13 +322,32 @@ function main() {
     process.exit(0);
   }
 
-  const summary = extractLatestSessionSummary();
-  if (!summary) {
-    d('No session summary found -- skipping');
+  const session = findLatestSession();
+  if (!session) {
+    d('No session file found -- skipping');
     process.exit(0);
   }
 
-  appendToDailyNote(summary);
+  d(`Session: ${session.name} → project: ${session.project} (${session.content.length} chars)`);
+
+  session.summary = extractSummary(session.content);
+  if (!session.summary) {
+    d('No summary extracted -- skipping');
+    process.exit(0);
+  }
+
+  // 1. Save session to project-isolated note
+  const notePath = appendToProjectNote(session);
+  d(`Note path: ${notePath}`);
+
+  // 2. Update project index
+  updateProjectIndex(session);
+
+  // 3. Run GC (once per day)
+  if (shouldRunGC()) {
+    runGC(session.project);
+  }
+
   process.exit(0);
 }
 
