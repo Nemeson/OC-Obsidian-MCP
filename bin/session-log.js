@@ -5,9 +5,14 @@
  * Usage:
  *   npx oc-obsidian-mcp session-log
  *   node bin/session-log.js
+ *   npm run session-log
  *
  * Saves the current session summary to the Obsidian vault.
  * Works with Claude Code (.tmp files) and OpenCode sessions.
+ *
+ * Requires:
+ *   - OBSIDIAN_VAULT_PATH environment variable or config/.mcp-env file
+ *   - A session file in ~/.claude/session-data/ (Claude Code) or ~/.opencode/sessions/
  */
 
 const fs = require('fs');
@@ -168,7 +173,37 @@ function appendToDailyNote(summary) {
 
 // ─── Main ───────────────────────────────────────────────
 
+function showHelp() {
+  console.log(`
+Usage: session-log [options]
+
+Options:
+  -h, --help     Show this help message
+  -v, --version  Show version
+
+Environment:
+  OBSIDIAN_VAULT_PATH    Path to Obsidian vault (required)
+  DAILY_NOTE_FOLDER      Target folder (default: OpenCode/Sessions)
+
+Reads the latest session file from ~/.claude/session-data/
+or ~/.opencode/sessions/ and appends the summary to the
+Obsidian vault daily note.
+`);
+}
+
 function main() {
+  const args = process.argv.slice(2);
+
+  if (args.includes('-h') || args.includes('--help')) {
+    showHelp();
+    process.exit(0);
+  }
+
+  if (args.includes('-v') || args.includes('--version')) {
+    console.log('oc-obsidian-mcp v1.0.0');
+    process.exit(0);
+  }
+
   if (!VAULT_PATH) {
     console.error('Error: OBSIDIAN_VAULT_PATH not set. Run setup or set the environment variable.');
     process.exit(1);

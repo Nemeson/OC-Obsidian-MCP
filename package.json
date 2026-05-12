@@ -1,17 +1,33 @@
 {
   "name": "oc-obsidian-mcp",
   "version": "1.0.0",
-  "description": "Persistent memory for OpenCode agents -- backed by your Obsidian vault",
-  "keywords": ["opencode", "obsidian", "mcp", "memory", "agent"],
+  "description": "Persistent memory for AI agents (OpenCode / Claude Code / Codex) — backed by your Obsidian vault via MCP",
+  "keywords": [
+    "opencode",
+    "obsidian",
+    "mcp",
+    "memory",
+    "agent",
+    "claude-code",
+    "codex",
+    "persistent-memory",
+    "vault",
+    "cli"
+  ],
   "homepage": "https://github.com/yourusername/oc-obsidian-mcp",
   "bugs": {
     "url": "https://github.com/yourusername/oc-obsidian-mcp/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/oc-obsidian-mcp.git"
   },
   "license": "MIT",
   "author": "Your Name <you@example.com>",
   "engines": {
     "node": ">=20.0.0"
   },
+  "main": "bin/oc-obsidian-mcp.js",
   "scripts": {
     "test": "node test/runner.js",
     "test:watch": "node test/runner.js --watch",
@@ -20,7 +36,7 @@
     "session-log": "node bin/session-log.js"
   },
   "bin": {
-    "oc-obsidian-mcp": "bin/session-log.js",
+    "oc-obsidian-mcp": "bin/oc-obsidian-mcp.js",
     "session-log": "bin/session-log.js"
   },
   "files": [

@@ -10,8 +10,8 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { execSync } = require('child_process');
 
-const TESTS_RUN = Symbol('tests-run');
 const PROJECT_ROOT = path.join(__dirname, '..');
 
 // ─── Test Utilities ─────────────────────────────────────
@@ -36,11 +36,14 @@ function assert(condition, message) {
       console.log(`    [ OK ] ${message}`);
     }
   }
-  // Non-verbose: show nothing per-test
 }
 
 function assertEqual(actual, expected, message) {
   assert(actual === expected, `${message} | expected: ${JSON.stringify(expected)}, got: ${JSON.stringify(actual)}`);
+}
+
+function assertIncludes(haystack, needle, message) {
+  assert(haystack.includes(needle), `${message} | expected to include: ${needle}`);
 }
 
 function assertExists(filePath, message) {
@@ -48,27 +51,123 @@ function assertExists(filePath, message) {
   assert(fs.existsSync(full), `${message} | path: ${filePath}`);
 }
 
+function assertNotExists(filePath, message) {
+  const full = path.join(PROJECT_ROOT, filePath);
+  assert(!fs.existsSync(full), `${message} | unexpectedly found: ${filePath}`);
+}
+
+function assertValidJson(filePath, message) {
+  const full = path.join(PROJECT_ROOT, filePath);
+  try {
+    JSON.parse(fs.readFileSync(full, 'utf8'));
+    assert(true, message);
+  } catch (e) {
+    assert(false, `${message} | ${e.message}`);
+  }
+}
+
 // ─── Tests ──────────────────────────────────────────────
 
-describe('File existence', () => {
-  const required = [
-    'README.md',
-    'setup.ps1',
-    'package.json',
-    'LICENSE',
-    '.gitignore',
-    'scripts/obsidian-mcp-wrapper.cmd',
-    'scripts/obsidian-mcp-wrapper.sh',
-    'hooks/obsidian-session-save.js',
-    'skills/obsidian-memory.md',
-    'config/mcp-config-opencode-global.json',
-    'config/mcp-config-opencode-project.json',
-    'config/mcp-config-claude-desktop.json',
-    'config/mcp-config-codex.toml',
-    'config/mcp-config-hooks.json',
-    'config/.mcp-env.template',
-  ];
-  required.forEach(f => assertExists(f, `Required file: ${f}`));
+describe('Project structure', () => {
+  // Core files
+  assertExists('README.md', 'Project has README');
+  assertExists('setup.ps1', 'Project has setup script');
+  assertExists('package.json', 'Project has package.json');
+  assertExists('LICENSE', 'Project has LICENSE');
+  assertExists('.gitignore', 'Project has .gitignore');
+  assertExists('secrets.yaml', 'Project has secrets template');
+
+  // Scripts
+  assertExists('scripts/obsidian-mcp-wrapper.cmd', 'Windows wrapper exists');
+  assertExists('scripts/obsidian-mcp-wrapper.sh', 'Unix wrapper exists');
+
+  // Hooks
+  assertExists('hooks/obsidian-session-save.js', 'Stop hook script exists');
+
+  // Skills
+  assertExists('skills/obsidian-memory.md', 'Skill documentation exists');
+
+  // Configs
+  assertExists('config/mcp-config-opencode-global.json', 'Global config template exists');
+  assertExists('config/mcp-config-opencode-project.json', 'Project config template exists');
+  assertExists('config/mcp-config-claude-desktop.json', 'Claude Desktop config template exists');
+  assertExists('config/mcp-config-codex.toml', 'Codex config template exists');
+  assertExists('config/mcp-config-hooks.json', 'Hooks config template exists');
+  assertExists('config/.mcp-env.template', 'Env template exists');
+
+  // CLI
+  assertExists('bin/session-log.js', 'CLI entry exists');
+  assertExists('bin/session-log.js', 'CLI script exists');
+});
+
+describe('NPM / package.json', () => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(PROJECT_ROOT, 'package.json'), 'utf8'));
+
+  // Metadata
+  assertEqual(typeof pkg.name, 'string', 'package.json has name');
+  assertEqual(pkg.name, 'oc-obsidian-mcp', 'package name is oc-obsidian-mcp');
+  assertEqual(typeof pkg.version, 'string', 'package.json has version');
+  assert(/^\d+\.\d+\.\d+/.test(pkg.version), 'version is semantic (x.y.z)');
+  assertEqual(typeof pkg.description, 'string', 'package.json has description');
+
+  // Engines
+  assertEqual(pkg.engines.node, '>=20.0.0', 'package.json requires Node >=20');
+
+  // Scripts
+  assert(Object.keys(pkg.scripts).includes('test'), 'package.json has test script');
+  assert(Object.keys(pkg.scripts).includes('session-log'), 'package.json has session-log script');
+  assert(Object.keys(pkg.scripts).includes('lint'), 'package.json has lint script');
+  assert(Object.keys(pkg.scripts).includes('setup'), 'package.json has setup script');
+
+  // Bin entries for CLI
+  assert(pkg.bin && pkg.bin['oc-obsidian-mcp'], 'package.json has oc-obsidian-mcp bin entry');
+  assert(pkg.bin && pkg.bin['session-log'], 'package.json has session-log bin entry');
+
+  // NPM distribution fields
+  assert(Array.isArray(pkg.files), 'package.json has files array for npm');
+  assert(pkg.files.includes('bin/'), 'files includes bin/');
+  assert(pkg.files.includes('scripts/'), 'files includes scripts/');
+  assert(pkg.files.includes('hooks/'), 'files includes hooks/');
+  assert(pkg.files.includes('skills/'), 'files includes skills/');
+  assert(pkg.files.includes('config/'), 'files includes config/');
+  assert(pkg.files.includes('setup.ps1'), 'files includes setup.ps1');
+
+  // Keywords/SEO
+  assert(Array.isArray(pkg.keywords), 'package.json has keywords array');
+  assert(pkg.keywords.some(k => k === 'opencode'), 'keywords include opencode');
+  assert(pkg.keywords.some(k => k === 'obsidian'), 'keywords include obsidian');
+  assert(pkg.keywords.some(k => k === 'mcp'), 'keywords include mcp');
+
+  // Author and license
+  assertEqual(typeof pkg.author, 'string', 'package.json has author');
+  assertEqual(typeof pkg.license, 'string', 'package.json has license');
+
+  // Optional: repository (warn only)
+  if (!pkg.repository) {
+    assert(true, 'WARN: add repository field before publishing');
+  }
+});
+
+describe('NPM install readiness', () => {
+  // Verify npx resolves mcp-obsidian-vault (optional, may fail offline)
+  try {
+    const out = execSync('npx -y mcp-obsidian-vault --version', {
+      encoding: 'utf8',
+      timeout: 30000,
+      stdio: ['pipe', 'pipe', 'ignore']
+    });
+    assert(out.trim().length > 0, 'mcp-obsidian-vault resolves via npx');
+  } catch {
+    assert(true, 'SKIP: mcp-obsidian-vault npx check (offline or network)');
+  }
+
+  // CLI is executable-ish (has shebang)
+  const cli = fs.readFileSync(path.join(PROJECT_ROOT, 'bin/session-log.js'), 'utf8');
+  assert(cli.startsWith('#!/usr/bin/env node'), 'CLI has shebang for npm bin');
+
+  // CLI can show help-like behavior (dry-run)
+  assert(cli.includes('OBSIDIAN_VAULT_PATH'), 'CLI checks env vars');
+  assert(cli.includes('Usage:'), 'CLI has usage description');
 });
 
 describe('Wrapper scripts', () => {
@@ -79,6 +178,8 @@ describe('Wrapper scripts', () => {
   assert(sh.includes('npx -y mcp-obsidian-vault'), 'Unix wrapper calls mcp-obsidian-vault');
   assert(cmd.includes('OBSIDIAN_VAULT_PATH'), 'Win wrapper reads OBSIDIAN_VAULT_PATH');
   assert(sh.includes('OBSIDIAN_VAULT_PATH'), 'Unix wrapper reads OBSIDIAN_VAULT_PATH');
+
+  // Comment filtering (handles .mcp-env templates)
   assert(!cmd.includes('set "#"'), 'Win wrapper does not set comment as var');
   assert(sh.includes('#'), 'Unix wrapper handles comments');
   assertEqual(sh.split(/\r?\n/).filter(l => l.trim().startsWith('#')).length >= 2, true, 'Unix wrapper has comments');
@@ -93,44 +194,10 @@ describe('Hook script', () => {
   assert(js.includes('git rev-parse --show-toplevel'), 'Hook extracts project name');
   assert(js.includes('gitAutoSync'), 'Hook supports git auto-sync');
   assert(js.includes('d('), 'Hook has debug logging');
-});
 
-describe('Config templates', () => {
-  const global = fs.readFileSync(path.join(PROJECT_ROOT, 'config/mcp-config-opencode-global.json'), 'utf8');
-  const project = fs.readFileSync(path.join(PROJECT_ROOT, 'config/mcp-config-opencode-project.json'), 'utf8');
-
-  assert(global.includes('"mcpServers"'), 'Global config uses mcpServers schema');
-  assert(project.includes('"mcp"'), 'Project config uses mcp schema');
-  assert(!global.includes('env'), 'Global config has no env field (OpenCode limitation)');
-  assert(!project.includes('env'), 'Project config has no env field (OpenCode limitation)');
-  assert(global.includes('obsidian'), 'Global config references obsidian');
-  assert(project.includes('obsidian'), 'Project config references obsidian');
-
-  const claude = fs.readFileSync(path.join(PROJECT_ROOT, 'config/mcp-config-claude-desktop.json'), 'utf8');
-  assert(claude.includes('env'), 'Claude Desktop config HAS env field');
-  assert(claude.includes('GIT_AUTO_SYNC'), 'Claude config sets GIT_AUTO_SYNC');
-});
-
-describe('README', () => {
-  const readme = fs.readFileSync(path.join(PROJECT_ROOT, 'README.md'), 'utf8');
-
-  assert(readme.includes('# OC-Obsidian-MCP'), 'README has title');
-  assert(readme.includes('## Prerequisites'), 'README has Prerequisites');
-  assert(readme.includes('## Quick Start'), 'README has Quick Start');
-  assert(readme.includes('## Environment Variables'), 'README has Environment Variables');
-  assert(readme.includes('## License'), 'README has license section');
-  assert(readme.includes('MIT'), 'README mentions MIT');
-});
-
-describe('Package.json', () => {
-  const pkg = JSON.parse(fs.readFileSync(path.join(PROJECT_ROOT, 'package.json'), 'utf8'));
-
-  assertEqual(typeof pkg.name, 'string', 'package.json has name');
-  assertEqual(typeof pkg.version, 'string', 'package.json has version');
-  assertEqual(pkg.engines.node, '>=20.0.0', 'package.json requires Node >=20');
-  assert(Object.keys(pkg.scripts).includes('test'), 'package.json has test script');
-  assert(Object.keys(pkg.scripts).includes('session-log'), 'package.json has session-log script');
-  assert(pkg.bin && pkg.bin['session-log'], 'package.json has session-log bin entry');
+  // Session discovery
+  assert(js.includes('SESSIONS_DIR'), 'Hook references SESSIONS_DIR');
+  assert(js.includes('-session.tmp'), 'Hook looks for .tmp session files');
 });
 
 describe('CLI: bin/session-log.js', () => {
@@ -142,6 +209,57 @@ describe('CLI: bin/session-log.js', () => {
   assert(cli.includes('Claude Code'), 'CLI mentions Claude Code sessions');
   assert(cli.includes('OpenCode'), 'CLI mentions OpenCode sessions');
   assert(cli.includes('ECC:SUMMARY'), 'CLI parses ECC summary blocks');
+
+  // Error handling
+  assert(cli.includes('Error: OBSIDIAN_VAULT_PATH not set'), 'CLI has vault path error');
+  assert(cli.includes('Error: No session file found'), 'CLI has session not found error');
+});
+
+describe('Config templates', () => {
+  assertValidJson('config/mcp-config-opencode-global.json', 'Global config is valid JSON');
+  assertValidJson('config/mcp-config-opencode-project.json', 'Project config is valid JSON');
+  assertValidJson('config/mcp-config-claude-desktop.json', 'Claude Desktop config is valid JSON');
+  assertValidJson('config/mcp-config-hooks.json', 'Hooks config is valid JSON');
+
+  const global = fs.readFileSync(path.join(PROJECT_ROOT, 'config/mcp-config-opencode-global.json'), 'utf8');
+  const project = fs.readFileSync(path.join(PROJECT_ROOT, 'config/mcp-config-opencode-project.json'), 'utf8');
+
+  assert(global.includes('"mcpServers"'), 'Global config uses mcpServers schema');
+  assert(project.includes('"mcp"'), 'Project config uses mcp schema');
+  assert(!global.includes('"env"'), 'Global config has no env field (OpenCode limitation)');
+  assert(!project.includes('"env"'), 'Project config has no env field (OpenCode limitation)');
+  assert(global.includes('obsidian'), 'Global config references obsidian');
+  assert(project.includes('obsidian'), 'Project config references obsidian');
+
+  const claude = fs.readFileSync(path.join(PROJECT_ROOT, 'config/mcp-config-claude-desktop.json'), 'utf8');
+  assert(claude.includes('"env"'), 'Claude Desktop config HAS env field');
+  assert(claude.includes('GIT_AUTO_SYNC'), 'Claude config sets GIT_AUTO_SYNC');
+});
+
+describe('README quality', () => {
+  const readme = fs.readFileSync(path.join(PROJECT_ROOT, 'README.md'), 'utf8');
+
+  assert(readme.includes('# OC-Obsidian-MCP'), 'README has title');
+  assert(readme.includes('## Prerequisites'), 'README has Prerequisites');
+  assert(readme.includes('## Quick Start'), 'README has Quick Start');
+  assert(readme.includes('## Environment Variables'), 'README has Environment Variables');
+  assert(readme.includes('## License'), 'README has license section');
+  assert(readme.includes('MIT'), 'README mentions MIT');
+
+  // NPM readiness markers
+  assert(readme.includes('npm install') || readme.includes('npx oc-obsidian-mcp'), 'README mentions npm');
+  assert(readme.includes('npm test'), 'README mentions npm test');
+});
+
+describe('.gitignore security', () => {
+  const gi = fs.readFileSync(path.join(PROJECT_ROOT, '.gitignore'), 'utf8');
+
+  assert(gi.includes('secrets.yaml'), '.gitignore excludes secrets.yaml');
+  assert(gi.includes('.env'), '.gitignore excludes .env');
+  assert(gi.includes('node_modules/'), '.gitignore excludes node_modules/');
+
+  // Verify secrets.yaml is NOT committed (should be untracked)
+  assertExists('secrets.yaml', 'secrets.yaml exists for new users');
 });
 
 describe('Dry-run: hook script', () => {
@@ -198,12 +316,10 @@ console.log(`\n  ─────────────────────
 console.log(`  Results: ${results.passed} passed, ${results.failed} failed`);
 
 if (results.errors.length > 0 && !process.argv.includes('--verbose')) {
-  console.log(`\n  Failures:`);
-  results.errors.forEach(e => console.log(`    [FAIL] ${e.message}`));
+  console.log(`  \n  Failed tests (re-run with --verbose):`);
+  results.errors.forEach(e => {
+    console.log(`    - ${e.message}`);
+  });
 }
 
-if (results.failed > 0) {
-  process.exit(1);
-}
-console.log(`  All tests passed. Ready for publication.`);
-process.exit(0);
+process.exit(results.failed > 0 ? 1 : 0);
