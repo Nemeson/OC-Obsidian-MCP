@@ -18,6 +18,11 @@ Thumbs.db
 *.swp
 *.swo
 
+# Secrets (API tokens, credentials — never commit)
+secrets.yaml
+*.secret
+.env
+
 # Test output
 test-reports/
 coverage/
