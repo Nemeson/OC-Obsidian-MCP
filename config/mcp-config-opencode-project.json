@@ -1,0 +1,10 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "obsidian": {
+      "type": "local",
+      "command": ["C:\\temp\\obsidian-mcp.cmd"],
+      "enabled": true
+    }
+  }
+}

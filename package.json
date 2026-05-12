@@ -1,0 +1,30 @@
+{
+  "name": "oc-obsidian-mcp",
+  "version": "1.0.0",
+  "description": "Persistent memory for OpenCode agents -- backed by your Obsidian vault",
+  "keywords": ["opencode", "obsidian", "mcp", "memory", "agent"],
+  "homepage": "https://github.com/yourusername/oc-obsidian-mcp",
+  "bugs": {
+    "url": "https://github.com/yourusername/oc-obsidian-mcp/issues"
+  },
+  "license": "MIT",
+  "author": "Your Name <you@example.com>",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "test": "node test/runner.js",
+    "test:watch": "node test/runner.js --watch",
+    "lint": "npx eslint scripts hooks",
+    "setup": "pwsh setup.ps1"
+  },
+  "files": [
+    "scripts/",
+    "hooks/",
+    "skills/",
+    "config/",
+    "setup.ps1",
+    "README.md",
+    "LICENSE"
+  ]
+}

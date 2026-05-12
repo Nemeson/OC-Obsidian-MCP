@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  lint-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate files exist
+        run: |
+          test -f README.md
+          test -f LICENSE
+          test -f package.json
+          test -f setup.ps1
+          test -f scripts/obsidian-mcp-wrapper.cmd
+          test -f scripts/obsidian-mcp-wrapper.sh
+          test -f hooks/obsidian-session-save.js
+          test -f skills/obsidian-memory.md
+
+      - name: Validate JSON configs
+        run: |
+          node -e "JSON.parse(require('fs').readFileSync('config/mcp-config-opencode-global.json'))"
+          node -e "JSON.parse(require('fs').readFileSync('config/mcp-config-opencode-project.json'))"
+          node -e "JSON.parse(require('fs').readFileSync('config/mcp-config-claude-desktop.json'))"
+
+      - name: Validate package.json
+        run: node -e "JSON.parse(require('fs').readFileSync('package.json'))"
+
+      - name: Run test suite
+        run: node test/runner.js
+
+      - name: Test hook dry-run
+        run: |
+          mkdir -p /tmp/ocobsidian-test/vault/OpenCode/Sessions
+          mkdir -p /tmp/ocobsidian-test/session-data
+          echo -e "Test session\n<!-- ECC:SUMMARY:START -->\nSummary line\n<!-- ECC:SUMMARY:END -->" > /tmp/ocobsidian-test/session-data/2026-05-12-session.tmp
+          OBSIDIAN_VAULT_PATH=/tmp/ocobsidian-test/vault DAILY_NOTE_FOLDER=OpenCode/Sessions SESSIONS_DIR=/tmp/ocobsidian-test/session-data node hooks/obsidian-session-save.js
+          test -f /tmp/ocobsidian-test/vault/OpenCode/Sessions/2026-05-12.md && cat /tmp/ocobsidian-test/vault/OpenCode/Sessions/2026-05-12.md

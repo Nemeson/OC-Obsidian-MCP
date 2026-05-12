@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "obsidian": {
+      "command": "npx",
+      "args": ["-y", "mcp-obsidian-vault"],
+      "env": {
+        "OBSIDIAN_VAULT_PATH": "C:\\Users\\YourName\\Obsidian\\YourVault",
+        "GIT_AUTO_SYNC": "true",
+        "DAILY_NOTE_FOLDER": "OpenCode/Sessions",
+        "DECISIONS_FOLDER": "OpenCode/Decisions",
+        "DISCOVERIES_FOLDER": "OpenCode/Learnings",
+        "AGENTS_FOLDER": "OpenCode/Context"
+      }
+    }
+  }
+}

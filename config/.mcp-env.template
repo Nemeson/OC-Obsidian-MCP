@@ -1,0 +1,17 @@
+# OC-Obsidian-MCP Environment Configuration (template)
+# Copy this file to .mcp-env and edit the vault path.
+
+# Path to your Obsidian vault (REQUIRED — edit this)
+OBSIDIAN_VAULT_PATH=C:\Users\YourName\Obsidian\YourVault
+
+# OpenCode folder structure within the vault
+DAILY_NOTE_FOLDER=OpenCode/Sessions
+DECISIONS_FOLDER=OpenCode/Decisions
+DISCOVERIES_FOLDER=OpenCode/Learnings
+AGENTS_FOLDER=OpenCode/Context
+
+# Git auto-sync (commits after every write)
+GIT_AUTO_SYNC=true
+
+# Move deleted notes to .trash instead of permanent delete
+TRASH_ON_DELETE=true

@@ -1,0 +1,19 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"PATH\\TO\\OC-Obsidian-MCP\\hooks\\obsidian-session-save.js\"",
+            "async": true,
+            "timeout": 15
+          }
+        ],
+        "description": "Save session learnings to Obsidian vault",
+        "id": "stop:obsidian-session-save"
+      }
+    ]
+  }
+}
