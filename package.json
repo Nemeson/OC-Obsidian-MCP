@@ -15,10 +15,16 @@
   "scripts": {
     "test": "node test/runner.js",
     "test:watch": "node test/runner.js --watch",
-    "lint": "npx eslint scripts hooks",
-    "setup": "pwsh setup.ps1"
+    "lint": "npx eslint scripts hooks bin",
+    "setup": "pwsh setup.ps1",
+    "session-log": "node bin/session-log.js"
+  },
+  "bin": {
+    "oc-obsidian-mcp": "bin/session-log.js",
+    "session-log": "bin/session-log.js"
   },
   "files": [
+    "bin/",
     "scripts/",
     "hooks/",
     "skills/",

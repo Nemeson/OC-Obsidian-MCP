@@ -129,6 +129,19 @@ describe('Package.json', () => {
   assertEqual(typeof pkg.version, 'string', 'package.json has version');
   assertEqual(pkg.engines.node, '>=20.0.0', 'package.json requires Node >=20');
   assert(Object.keys(pkg.scripts).includes('test'), 'package.json has test script');
+  assert(Object.keys(pkg.scripts).includes('session-log'), 'package.json has session-log script');
+  assert(pkg.bin && pkg.bin['session-log'], 'package.json has session-log bin entry');
+});
+
+describe('CLI: bin/session-log.js', () => {
+  assertExists('bin/session-log.js', 'CLI script exists');
+
+  const cli = fs.readFileSync(path.join(PROJECT_ROOT, 'bin/session-log.js'), 'utf8');
+  assert(cli.includes('function findLatestSessionFile()'), 'CLI discovers session files');
+  assert(cli.includes('function extractSummary('), 'CLI extracts summary');
+  assert(cli.includes('Claude Code'), 'CLI mentions Claude Code sessions');
+  assert(cli.includes('OpenCode'), 'CLI mentions OpenCode sessions');
+  assert(cli.includes('ECC:SUMMARY'), 'CLI parses ECC summary blocks');
 });
 
 describe('Dry-run: hook script', () => {

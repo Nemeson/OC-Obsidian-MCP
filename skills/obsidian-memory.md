@@ -1,6 +1,6 @@
 # Obsidian Memory Skill
 
-Use Obsidian as a persistent memory layer for OpenCode agent sessions.
+Use Obsidian as a persistent memory layer for OpenCode / Claude Code / Codex CLI agent sessions.
 
 ## Requirements
 
@@ -13,7 +13,7 @@ Use Obsidian as a persistent memory layer for OpenCode agent sessions.
 ```
 MyVault/
 └── OpenCode/
-    ├── Sessions/          ← Auto-generated session logs (via DAILY_NOTE_FOLDER)
+    ├── Sessions/          ← Session logs (auto via Stop Hook in Claude Code, manual via /session-log)
     ├── Decisions/         ← Architecture Decision Records (ADRs)
     ├── Learnings/         ← Reusable patterns, fixes, code snippets
     └── Context/           ← Project context notes (read by agents at session start)
@@ -39,19 +39,38 @@ All tools are provided by `mcp-obsidian-vault`:
 | `resolve_frontmatter(path)` | Read YAML frontmatter |
 | `git_sync(action)` | Git operations (commit, push, pull, status) |
 
-## Usage
+## Commands
 
-### 1. Auto Session Logging (via Stop Hook)
+### 1. Manual Session Log (`/session-log`)
 
-After setup, every session's summary is automatically appended to:
+Save the current session summary to the vault **now**:
+
+```
+/session-log
+```
+
+This reads the latest session file (Claude Code `.tmp` or OpenCode `.json`) and appends the extracted summary to:
 
 ```
 OpenCode/Sessions/YYYY-MM-DD.md
 ```
 
-This runs as an async Stop hook — it never blocks the agent.
+**Note:** The session file must exist in one of these directories:
+- Claude Code: `~/.claude/session-data/`
+- OpenCode: `~/.opencode/sessions/` (if supported)
 
-### 2. Save a Decision (`/adr`)
+### 2. Auto Session Logging (via Stop Hook) — Claude Code Only
+
+After setup, every session's summary is **automatically** appended to the daily note when Claude Code fires the `Stop` hook.
+
+This requires:
+1. Running `setup.ps1` and installing the hook
+2. The hook script copied to `~/.claude/scripts/hooks/obsidian-session-save.js`
+3. `hooks.json` containing the `stop:obsidian-session-save` entry
+
+**Limitation:** OpenCode does not currently support a Stop hook. Use `/session-log` manually instead.
+
+### 3. Save a Decision (`/adr`)
 
 Trigger the agent to save an Architecture Decision Record:
 
@@ -61,7 +80,24 @@ Trigger the agent to save an Architecture Decision Record:
 
 The agent writes a structured ADR to `OpenCode/Decisions/`.
 
-### 3. Save a Learning (`/remember`)
+Template:
+```markdown
+# ADR-NNN: Title
+
+**Status:** Proposed | Accepted | Rejected
+**Date:** YYYY-MM-DD
+
+## Context
+[Why was this decision needed?]
+
+## Decision
+[What was decided?]
+
+## Consequences
+[Positive and negative impacts]
+```
+
+### 4. Save a Learning (`/remember`)
 
 When you solve something non-trivial:
 
@@ -71,16 +107,45 @@ When you solve something non-trivial:
 
 The agent writes the pattern to `OpenCode/Learnings/`.
 
-### 4. Load Context from Obsidian
+Template:
+```markdown
+# [Title]
 
-Place project context notes in `OpenCode/Context/`. Agents can read them
-explicitly, or they can be loaded automatically during session bootstrap.
+**Type:** Bugfix | Pattern | Code-Snippet | Architecture
+**Project:** [Project name]
+**Date:** YYYY-MM-DD
+
+## Problem
+[Short description]
+
+## Solution
+[How was it solved?]
+
+## Code
+```[language]
+// relevant code example
+```
+```
+
+### 5. Load Context from Obsidian
+
+Place project context notes in `OpenCode/Context/`. Agents can read them explicitly, or they can be loaded automatically during session bootstrap.
 
 ## Integration Notes
 
 - **OpenCode**: Register via `~/.opencode/mcp.json` or `~/.config/opencode/opencode.json`
 - **Claude Desktop**: Register via `claude_desktop_config.json`
-- **Claude Code**: Use `claude mcp add obsidian -- <command>`
+- **Claude Code**: Use `claude mcp add obsidian -- <command>` + Stop hook via `setup.ps1`
 - **Codex CLI**: Register in `Codex.toml`
+
+## CLI Commands (npm scripts)
+
+```bash
+# Manual session log
+npx oc-obsidian-mcp session-log
+
+# Or via package script (after install)
+npm run session-log
+```
 
 See the [README](../README.md) for full setup instructions.
