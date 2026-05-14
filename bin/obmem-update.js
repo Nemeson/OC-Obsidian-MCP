@@ -1,20 +1,20 @@
 #!/usr/bin/env node
 /**
- * ObMem v2.5: Self-Update Command (/update)
+ * ObMem Update — Git-centric auto-update (bin: obmem-update)
+ *
+ * For dev installs (npm link / git clone), updates via git pull.
+ * For npm installs, updates via npm.
  *
  * Usage:
  *   obmem update              Check for updates
- *   obmem update --apply      Download and install latest version
- *
+ *   obmem update --apply      Pull and install latest version
+ *   obmem update --force      Force reinstall even if up to date
  */
 
-const https = require('https');
-const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const PACKAGE_NAME = 'obmem';
 const GITHUB_REPO = 'Nemeson/OC-Obsidian-MCP';
 const NPM_PACKAGE = 'oc-obsidian-mcp';
 
@@ -23,65 +23,22 @@ function errorExit(msg) {
   process.exit(1);
 }
 
-function httpGetJson(url) {
-  return new Promise((resolve, reject) => {
-    const mod = url.startsWith('https:') ? https : http;
-    const req = mod.get(url, { headers: { 'User-Agent': 'obmem-update/2.5.0' } }, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => {
-        try { resolve(JSON.parse(data)); }
-        catch (e) { reject(new Error(`Invalid JSON: ${e.message}`)); }
-      });
+function exec(cmd, opts = {}) {
+  try {
+    return execSync(cmd, {
+      encoding: 'utf8',
+      stdio: opts.inherit ? 'inherit' : ['pipe', 'pipe', 'pipe'],
+      timeout: opts.timeout || 30000,
+      cwd: opts.cwd || undefined,
+      ...opts,
     });
-    req.on('error', reject);
-    req.setTimeout(15000, () => { req.destroy(); reject(new Error('Connection timeout')); });
-  });
-}
-
-// ─── Check latest GitHub release ──────────────────────────
-async function checkGithub() {
-  const url = `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`;
-  try {
-    const release = await httpGetJson(url);
-    if (!release.tag_name) return null;
-    return {
-      version: release.tag_name.replace(/^v/, ''),
-      url: release.html_url,
-      tarball: release.tarball_url,
-      published: release.published_at,
-      notes: release.body || ''
-    };
-  } catch { return null; }
-}
-
-// ─── Check npm registry ───────────────────────────────────
-async function checkNpm() {
-  const url = `https://registry.npmjs.org/${NPM_PACKAGE}/latest`;
-  try {
-    const pkg = await httpGetJson(url);
-    if (!pkg.version) return null;
-    return {
-      version: pkg.version,
-      url: `https://www.npmjs.com/package/${NPM_PACKAGE}`,
-      tarball: pkg.dist?.tarball || null,
-      published: pkg.time?.modified || pkg.time?.[pkg.version] || null
-    };
-  } catch { return null; }
-}
-
-// ─── Semver compare (a > b ? 1 : -1 : 0) ────────────────────
-function compareVersion(a, b) {
-  const pa = a.split('.').map(Number);
-  const pb = b.split('.').map(Number);
-  for (let i = 0; i < 3; i++) {
-    if ((pa[i] || 0) > (pb[i] || 0)) return 1;
-    if ((pa[i] || 0) < (pb[i] || 0)) return -1;
+  } catch (e) {
+    if (opts.silent) return null;
+    throw e;
   }
-  return 0;
 }
 
-// ─── Get current version ──────────────────────────────────
+// ─── Get current version from package.json ────────────────
 function getCurrentVersion() {
   try {
     const pkgPath = path.join(__dirname, '..', 'package.json');
@@ -93,65 +50,106 @@ function getCurrentVersion() {
   return '0.0.0';
 }
 
-// ─── Update from git ────────────────────────────────────────
-function updateViaGit() {
+// ─── Check if this is a git clone / linked install ──────
+function isGitInstall() {
+  return fs.existsSync(path.join(__dirname, '..', '.git'));
+}
+
+// ─── Git-based update check ─────────────────────────────
+function checkGitUpdates() {
+  try {
+    // Fetch latest from remote (no merge)
+    exec('git fetch origin', { silent: true, timeout: 15000 });
+
+    // Count commits behind origin/master
+    const behind = exec('git rev-list --count HEAD..origin/master', { silent: true })?.trim();
+    const ahead = exec('git rev-list --count origin/master..HEAD', { silent: true })?.trim();
+
+    // Get latest commit info
+    const lastCommit = exec('git log -1 --format="%h %s" origin/master', { silent: true })?.trim();
+    const lastDate = exec('git log -1 --format="%ci" origin/master', { silent: true })?.trim();
+
+    return {
+      behind: parseInt(behind || '0', 10),
+      ahead: parseInt(ahead || '0', 10),
+      commit: lastCommit,
+      date: lastDate ? new Date(lastDate).toLocaleDateString() : null,
+      isGitInstall: true,
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
+// ─── Git apply update ───────────────────────────────────
+function applyGitUpdate() {
   try {
     const projectRoot = path.join(__dirname, '..');
     console.log('\n📥 Pulling latest changes from Git...\n');
     execSync('git pull origin master', {
       cwd: projectRoot,
       stdio: 'inherit',
-      timeout: 120000
+      timeout: 120000,
     });
-    console.log('\n ✅ Updated via git successfully.\n');
+
+    // Re-link if npm-linked
+    console.log('\n🔗 Re-linking package...\n');
+    try {
+      execSync('npm link', { cwd: projectRoot, stdio: 'inherit', timeout: 60000 });
+    } catch {
+      console.log('   (npm link skipped or failed, manual relink may be needed)');
+    }
+
+    console.log('\n✅ Updated successfully via git.\n');
     return true;
   } catch (e) {
-    console.error(`\n ⚠️  Git pull failed: ${e.message}\n`);
+    console.error(`\n⚠️  Git pull failed: ${e.message}\n`);
     return false;
   }
 }
 
-// ─── Update from npm ────────────────────────────────────────
-function updateViaNpm() {
+// ─── npm-based update check ─────────────────────────────
+function checkNpmUpdates() {
+  try {
+    const result = exec(`npm view ${NPM_PACKAGE} version`, { silent: true })?.trim();
+    if (!result) return null;
+    return {
+      version: result,
+      isGitInstall: false,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ─── npm apply update ─────────────────────────────────
+function applyNpmUpdate() {
   try {
     console.log('\n📥 Installing latest version from npm...\n');
-    execSync('npm install -g obmem@latest', {
+    execSync(`npm install -g ${NPM_PACKAGE}@latest`, {
       stdio: 'inherit',
-      timeout: 120000
+      timeout: 120000,
     });
-    console.log('\n ✅ Updated via npm successfully.\n');
+    console.log('\n✅ Updated successfully via npm.\n');
     return true;
   } catch (e) {
-    console.error(`\n ⚠️  npm install failed: ${e.message}\n`);
+    console.error(`\n⚠️  npm install failed: ${e.message}\n`);
     return false;
   }
 }
 
-// ─── Download tarball update ────────────────────────────────
-async function downloadTarball(tarballUrl) {
-  const tmpPath = path.join(os.tmpdir(), `obmem-update-${Date.now()}.tgz`);
-  return new Promise((resolve, reject) => {
-    const mod = tarballUrl.startsWith('https:') ? https : http;
-    const file = fs.createWriteStream(tmpPath);
-    const req = mod.get(tarballUrl, { headers: { 'User-Agent': 'obmem-update/2.5.0' } }, (res) => {
-      res.pipe(file);
-      file.on('finish', () => {
-        file.close(() => resolve(tmpPath));
-      });
-    });
-    req.on('error', (err) => {
-      fs.unlink(tmpPath, () => {});
-      reject(err);
-    });
-    req.setTimeout(30000, () => {
-      req.destroy();
-      fs.unlink(tmpPath, () => {});
-      reject(new Error('Download timeout'));
-    });
-  });
+// ─── Semver compare ─────────────────────────────────────
+function compareVersion(a, b) {
+  const pa = a.split('.').map(Number);
+  const pb = b.split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    if ((pa[i] || 0) > (pb[i] || 0)) return 1;
+    if ((pa[i] || 0) < (pb[i] || 0)) return -1;
+  }
+  return 0;
 }
 
-// ─── Main ────────────────────────────────────────────────────
+// ─── Main ───────────────────────────────────────────────
 async function main() {
   const args = process.argv.slice(2);
   const applyMode = args.includes('--apply');
@@ -160,92 +158,89 @@ async function main() {
   const currentVersion = getCurrentVersion();
   console.log(`\n🧠 ObMem v${currentVersion} — Update Check\n`);
 
-  console.log('🔍 Checking for updates...\n');
+  let updateAvailable = false;
+  let updateInfo = null;
 
-  const github = await checkGithub();
-  const npm = await checkNpm();
+  // ── Try git first ──────────────────────────────────────
+  if (isGitInstall()) {
+    const gitStatus = checkGitUpdates();
 
-  let latest = null;
-  let source = '';
-
-  if (github && npm) {
-    const cmp = compareVersion(github.version, npm.version);
-    if (cmp >= 0) {
-      latest = github;
-      source = 'GitHub';
-    } else {
-      latest = npm;
-      source = 'npm';
+    if (!gitStatus) {
+      errorExit('Could not check for git updates.\nAre you offline, or is the repo not accessible?');
     }
-  } else if (github) {
-    latest = github;
-    source = 'GitHub';
-  } else if (npm) {
-    latest = npm;
-    source = 'npm';
-  } else {
-    errorExit('Could not check for updates. Are you offline?\nTry: obmem update --force');
-  }
 
-  const cmp = compareVersion(latest.version, currentVersion);
-
-  if (cmp > 0 || forceMode) {
-    if (forceMode && cmp === 0) {
-      console.log(`ℹ️  Force mode: ${source} version ${latest.version} is already installed.`);
+    if (gitStatus.behind > 0) {
+      updateAvailable = true;
+      updateInfo = {
+        type: 'git',
+        behind: gitStatus.behind,
+        commit: gitStatus.commit,
+        date: gitStatus.date,
+      };
+      console.log(`🚀 Update available: ${gitStatus.behind} commit(s) behind origin/master`);
+      console.log(`   Latest: ${gitStatus.commit}`);
+      if (gitStatus.date) console.log(`   Date: ${gitStatus.date}`);
+    } else if (gitStatus.ahead > 0) {
+      console.log(`ℹ️  Your local branch is ${gitStatus.ahead} commit(s) ahead of origin/master.`);
+      console.log(`   No remote updates available.`);
     } else {
-      console.log(`🚀 Update available: ${source} v${latest.version}`);
+      console.log('✅ Up to date. Local branch matches origin/master.');
+    }
+
+    if (forceMode) {
+      console.log('\n⬇️  Force mode: pulling anyway...\n');
+      applyGitUpdate();
+      return;
+    }
+
+    if (updateAvailable && applyMode) {
+      applyGitUpdate();
+      return;
+    }
+  }
+  // ── Fallback to npm ──────────────────────────────────
+  else {
+    const npmInfo = checkNpmUpdates();
+    if (!npmInfo) {
+      errorExit('Could not check npm registry.\nPackage may not be published yet, or you may be offline.');
+    }
+
+    const cmp = compareVersion(npmInfo.version, currentVersion);
+    if (cmp > 0) {
+      updateAvailable = true;
+      updateInfo = { type: 'npm', version: npmInfo.version };
+      console.log(`🚀 Update available: npm v${npmInfo.version}`);
       console.log(`   Current: v${currentVersion}`);
-      console.log(`   Published: ${latest.published ? new Date(latest.published).toLocaleDateString() : 'unknown'}`);
-    }
-
-    if (latest.notes) {
-      console.log('\n📝 Release Notes:\n');
-      console.log(latest.notes.split('').slice(0, 500).join('') + (latest.notes.length > 500 ? '...' : ''));
-    }
-
-    if (applyMode || forceMode) {
-      console.log('\n⬇️  Applying update...\n');
-
-      let ok = false;
-      const isGitRepo = fs.existsSync(path.join(__dirname, '..', '.git'));
-      const canNpm = fs.existsSync(path.join(__dirname, '..', 'node_modules'));
-
-      if (isGitRepo) {
-        console.log('   Trying git pull first...');
-        ok = updateViaGit();
-      }
-
-      if (!ok && canNpm) {
-        console.log('   Trying npm install...');
-        ok = updateViaNpm();
-      }
-
-      if (!ok && latest.tarball) {
-        console.log('   Downloading tarball...');
-        try {
-          const tgz = await downloadTarball(latest.tarball);
-          console.log(`   Downloaded to ${tgz}`);
-          const extractDir = path.join(__dirname, '..');
-          execSync(`tar -xzf "${tgz}" -C "${extractDir}" --strip-components=1`, { stdio: 'inherit', timeout: 60000 });
-          fs.unlinkSync(tgz);
-          console.log('\n ✅ Updated from tarball successfully.\n');
-          ok = true;
-        } catch (e) {
-          console.error(`\n ❌ Tarball extraction failed: ${e.message}\n`);
-        }
-      }
-
-      if (!ok) {
-        errorExit('All update methods failed. Manual update required.\nInstall: npm install -g obmem@latest');
-      }
     } else {
-      console.log('\n💡 To update, run: obmem update --apply\n');
+      console.log(`✅ Up to date. npm has v${npmInfo.version}, you have v${currentVersion}.`);
     }
-  } else if (cmp === 0) {
-    console.log(`✅ ObMem is up to date (v${currentVersion})\n`);
-  } else {
-    console.log(`🌱 This version (v${currentVersion}) is newer than the latest release (v${latest.version}).\nYou are running a development build.\n`);
+
+    if (forceMode) {
+      console.log('\n⬇️  Force mode: reinstalling anyway...\n');
+      applyNpmUpdate();
+      return;
+    }
+
+    if (updateAvailable && applyMode) {
+      applyNpmUpdate();
+      return;
+    }
   }
+
+  // ── No action needed ─────────────────────────────────
+  if (!updateAvailable) {
+    console.log('\n💡 No action needed. Everything is up to date.\n');
+    return;
+  }
+
+  // ── Update available but not applied ───────────────────
+  console.log('\n💡 To update, run:\n');
+  if (updateInfo.type === 'git') {
+    console.log('   obmem update --apply');
+  } else {
+    console.log('   obmem update --apply');
+  }
+  console.log('');
 }
 
-main().catch(errorExit);
+main().catch((err) => errorExit(`Unexpected error: ${err.message}`));

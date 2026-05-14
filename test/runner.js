@@ -580,8 +580,8 @@ describe('v2.5: Package Metadata', () => {
 describe('v2.5: Self-Update Command', () => {
   assertExists('bin/obmem-update.js', 'Update CLI exists');
   const updateCode = fs.readFileSync(path.join(PROJECT_ROOT, 'bin/obmem-update.js'), 'utf8');
-  assert(updateCode.includes('checkGithub'), 'update checks GitHub releases');
-  assert(updateCode.includes('checkNpm'), 'update checks npm registry');
+  assert(updateCode.includes('checkGitUpdates'), 'update checks git for updates');
+  assert(updateCode.includes('checkNpmUpdates'), 'update checks npm registry');
   assert(updateCode.includes('--apply'), 'update supports --apply flag');
   assert(updateCode.includes('--force'), 'update supports --force flag');
   assert(updateCode.includes('obmem-update'), 'update script references itself');
