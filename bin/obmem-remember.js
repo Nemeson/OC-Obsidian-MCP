@@ -14,6 +14,9 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
+const { detectTags, detectType: libDetectType, detectImportance: libDetectImportance } = require('../lib/tags');
+const { initRelevance } = require('../lib/relevance');
+
 // ─── Load config ───────────────────────────────────────
 function loadMcpEnv() {
   const candidates = [
@@ -57,20 +60,28 @@ function detectProject() {
 }
 
 function detectType(title, body) {
-  const text = (title + ' ' + (body || '')).toLowerCase();
-  if (text.includes('bug') || text.includes('fehler') || text.includes('error')) return 'Bugfix';
-  if (text.includes('refactor') || text.includes('pattern') || text.includes('muster')) return 'Pattern';
-  if (text.includes('architektur') || text.includes('architecture') || text.includes('design')) return 'Architektur';
-  if (text.includes('test') || text.includes('testing')) return 'Testing';
-  if (text.match(/```/)) return 'Code-Snippet';
-  return 'Pattern';
+  try {
+    return libDetectType(title, body);
+  } catch {
+    const text = (title + ' ' + (body || '')).toLowerCase();
+    if (text.includes('bug') || text.includes('fehler') || text.includes('error')) return 'Bugfix';
+    if (text.includes('refactor') || text.includes('pattern') || text.includes('muster')) return 'Pattern';
+    if (text.includes('architektur') || text.includes('architecture') || text.includes('design')) return 'Architektur';
+    if (text.includes('test') || text.includes('testing')) return 'Testing';
+    if (text.match(/```/)) return 'Code-Snippet';
+    return 'Pattern';
+  }
 }
 
 function detectImportance(title, body) {
-  const text = (title + ' ' + (body || '')).toLowerCase();
-  if (text.includes('kritisch') || text.includes('critical') || text.includes('security') || text.includes('production')) return 'high';
-  if (text.includes('nice-to-have') || text.includes('optional') || text.includes('cosmetic')) return 'low';
-  return 'medium';
+  try {
+    return libDetectImportance(title, body);
+  } catch {
+    const text = (title + ' ' + (body || '')).toLowerCase();
+    if (text.includes('kritisch') || text.includes('critical') || text.includes('security') || text.includes('production')) return 'high';
+    if (text.includes('nice-to-have') || text.includes('optional') || text.includes('cosmetic')) return 'low';
+    return 'medium';
+  }
 }
 
 // ─── Related Notes ──────────────────────────────────────
@@ -98,15 +109,21 @@ function buildLearning(title, project, type, importance, body, code) {
   const keywords = title.split(/\s+/).filter(w => w.length > 3);
   const related = findRelated(project, keywords);
 
+  const tags = detectTags(title, body || '');
+  const rel = initRelevance({ created: getDate() });
+
   let lines = [
-    `# ${title}`,
-    '',
-    `**Typ:** ${type}`,
-    `**Projekt:** ${project}`,
-    `**Datum:** ${getDate()}`,
-    `**Relevanz:** #${importance}`,
-    '',
     '---',
+    `type: ${type}`,
+    `project: ${project}`,
+    `created: ${getDate()}`,
+    `importance: ${importance}`,
+    `tags: [${tags.all.map(t => `'${t}'`).join(', ')}]`,
+    `reuse_count: ${rel.reuse_count}`,
+    `last_used: ${rel.last_used}`,
+    '---',
+    '',
+    `# ${title}`,
     '',
   ];
 

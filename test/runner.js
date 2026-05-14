@@ -100,8 +100,8 @@ describe('Project structure', () => {
   assertExists('config/.mcp-env.template', 'Env template exists');
 
   // CLI
-  assertExists('bin/session-log.js', 'CLI entry exists');
-  assertExists('bin/session-log.js', 'CLI script exists');
+  assertExists('bin/obmem-session-log.js', 'CLI entry exists');
+  assertExists('bin/obmem-session-log.js', 'CLI script exists');
 });
 
 describe('NPM / package.json', () => {
@@ -109,7 +109,7 @@ describe('NPM / package.json', () => {
 
   // Metadata
   assertEqual(typeof pkg.name, 'string', 'package.json has name');
-  assertEqual(pkg.name, 'oc-obsidian-mcp', 'package name is oc-obsidian-mcp');
+  assertEqual(pkg.name, 'obmem', 'package name is obmem');
   assertEqual(typeof pkg.version, 'string', 'package.json has version');
   assert(/^\d+\.\d+\.\d+/.test(pkg.version), 'version is semantic (x.y.z)');
   assertEqual(typeof pkg.description, 'string', 'package.json has description');
@@ -124,8 +124,8 @@ describe('NPM / package.json', () => {
   assert(Object.keys(pkg.scripts).includes('setup'), 'package.json has setup script');
 
   // Bin entries for CLI
-  assert(pkg.bin && pkg.bin['oc-obsidian-mcp'], 'package.json has oc-obsidian-mcp bin entry');
-  assert(pkg.bin && pkg.bin['session-log'], 'package.json has session-log bin entry');
+  assert(pkg.bin && pkg.bin['obmem'], 'package.json has obmem bin entry');
+  assert(pkg.bin && pkg.bin['obmem-session-log'], 'package.json has obmem-session-log bin entry');
 
   // NPM distribution fields
   assert(Array.isArray(pkg.files), 'package.json has files array for npm');
@@ -166,7 +166,7 @@ describe('NPM install readiness', () => {
   }
 
   // CLI is executable-ish (has shebang)
-  const cli = fs.readFileSync(path.join(PROJECT_ROOT, 'bin/session-log.js'), 'utf8');
+  const cli = fs.readFileSync(path.join(PROJECT_ROOT, 'bin/obmem-session-log.js'), 'utf8');
   assert(cli.startsWith('#!/usr/bin/env node'), 'CLI has shebang for npm bin');
 
   // CLI can show help-like behavior (dry-run)
@@ -204,10 +204,10 @@ describe('Hook script', () => {
   assert(js.includes('-session.tmp'), 'Hook looks for .tmp session files');
 });
 
-describe('CLI: bin/session-log.js', () => {
-  assertExists('bin/session-log.js', 'CLI script exists');
+describe('CLI: bin/obmem-session-log.js', () => {
+  assertExists('bin/obmem-session-log.js', 'CLI script exists');
 
-  const cli = fs.readFileSync(path.join(PROJECT_ROOT, 'bin/session-log.js'), 'utf8');
+  const cli = fs.readFileSync(path.join(PROJECT_ROOT, 'bin/obmem-session-log.js'), 'utf8');
   assert(cli.includes('function findLatestSessionFile()'), 'CLI discovers session files');
   assert(cli.includes('function extractSummary('), 'CLI extracts summary');
   assert(cli.includes('Claude Code'), 'CLI mentions Claude Code sessions');
@@ -349,49 +349,50 @@ describe('Context loader', () => {
 
 describe('Quick Wins: CLI Commands', () => {
   // ADR
-  assertExists('bin/adr.js', 'ADR command exists');
-  const adr = fs.readFileSync(path.join(PROJECT_ROOT, 'bin/adr.js'), 'utf8');
+  assertExists('bin/obmem-adr.js', 'ADR command exists');
+  const adr = fs.readFileSync(path.join(PROJECT_ROOT, 'bin/obmem-adr.js'), 'utf8');
   assert(adr.includes('function buildAdr('), 'ADR builds template');
   assert(adr.includes('function findRelatedNotes('), 'ADR finds related notes');
   assert(adr.includes('ADR-'), 'ADR uses ADR-NNN format');
 
   // Remember
-  assertExists('bin/remember.js', 'Remember command exists');
-  const rem = fs.readFileSync(path.join(PROJECT_ROOT, 'bin/remember.js'), 'utf8');
+  assertExists('bin/obmem-remember.js', 'Remember command exists');
+  const rem = fs.readFileSync(path.join(PROJECT_ROOT, 'bin/obmem-remember.js'), 'utf8');
   assert(rem.includes('function detectType('), 'Remember auto-detects type');
   assert(rem.includes('function detectImportance('), 'Remember auto-detects importance');
   assert(rem.includes('function isDuplicate('), 'Remember checks duplicates');
   assert(rem.includes('function findRelated('), 'Remember finds related notes');
 
   // Related
-  assertExists('bin/related.js', 'Related notes command exists');
-  const rel = fs.readFileSync(path.join(PROJECT_ROOT, 'bin/related.js'), 'utf8');
+  assertExists('bin/obmem-related.js', 'Related notes command exists');
+  const rel = fs.readFileSync(path.join(PROJECT_ROOT, 'bin/obmem-related.js'), 'utf8');
   assert(rel.includes('function findRelatedNotes('), 'Related finds notes');
   assert(rel.includes('Decisions'), 'Related searches Decisions');
   assert(rel.includes('Learnings'), 'Related searches Learnings');
   assert(rel.includes('Sessions'), 'Related searches Sessions');
 
   // Digest
-  assertExists('bin/digest.js', 'Digest command exists');
-  const dig = fs.readFileSync(path.join(PROJECT_ROOT, 'bin/digest.js'), 'utf8');
+  assertExists('bin/obmem-digest.js', 'Digest command exists');
+  const dig = fs.readFileSync(path.join(PROJECT_ROOT, 'bin/obmem-digest.js'), 'utf8');
   assert(dig.includes('function buildDigest('), 'Digest builds report');
   assert(dig.includes('--week'), 'Digest supports --week');
   assert(dig.includes('--month'), 'Digest supports --month');
 
   // Load Context
-  assertExists('bin/load-context.js', 'Load context command exists');
+  assertExists('bin/obmem-load-context.js', 'Load context command exists');
 });
 
 describe('Main CLI dispatcher', () => {
-  assertExists('bin/oc-obsidian-mcp.js', 'Main CLI exists');
-
-  const cli = fs.readFileSync(path.join(PROJECT_ROOT, 'bin/oc-obsidian-mcp.js'), 'utf8');
+  assertExists('bin/obmem.js', 'Main CLI exists');
+  const cli = fs.readFileSync(path.join(PROJECT_ROOT, 'bin/obmem.js'), 'utf8');
   assert(cli.includes("'adr'") || cli.includes('"adr"'), 'Main CLI dispatches adr');
   assert(cli.includes("'remember'") || cli.includes('"remember"'), 'Main CLI dispatches remember');
   assert(cli.includes("'related'") || cli.includes('"related"'), 'Main CLI dispatches related');
   assert(cli.includes("'digest'") || cli.includes('"digest"'), 'Main CLI dispatches digest');
   assert(cli.includes("'session-log'") || cli.includes('"session-log"'), 'Main CLI dispatches session-log');
   assert(cli.includes("'load-context'") || cli.includes('"load-context"'), 'Main CLI dispatches load-context');
+  assert(cli.includes("'reflect'") || cli.includes('"reflect"'), 'Main CLI dispatches reflect');
+  assert(cli.includes("'goal'") || cli.includes('"goal"'), 'Main CLI dispatches goal');
   assert(cli.includes("'gc'") || cli.includes('"gc"'), 'Main CLI dispatches gc');
   assert(cli.includes("'setup'") || cli.includes('"setup"'), 'Main CLI dispatches setup');
 });
@@ -414,6 +415,163 @@ describe('Garbage collector', () => {
   assert(gc.includes('--dry-run'), 'GC supports dry-run');
   assert(gc.includes('THRESHOLDS.sessionArchive'), 'GC has session archive threshold');
   assert(gc.includes('THRESHOLDS.lowDelete'), 'GC has low-importance delete threshold');
+});
+
+// ─── v2.1 Smart Retrieval Tests ─────────────────────────
+
+describe('v2.1: Stemmer', () => {
+  const { stem, tokenize } = require('../lib/stemmer');
+  assertEqual(stem('running'), 'run', 'stem "running" => "run"');
+  assertEqual(stem('cats'), 'cat', 'stem "cats" => "cat"');
+  assertEqual(stem('flies'), 'fly', 'stem "flies" => "fly"');
+  assertEqual(stem('tried'), 'try', 'stem "tried" => "try"');
+  assertEqual(stem('boxes'), 'box', 'stem "boxes" => "box"');
+  assertEqual(stem('stopping'), 'stop', 'stem "stopping" => "stop"');
+  assertEqual(stem('quickly'), 'quick', 'stem "quickly" => "quick"');
+  assertEqual(stem('tested'), 'test', 'stem "tested" => "test"');
+  assertEqual(stem('tying'), 'tie', 'stem "tying" => "tie"');
+  assertEqual(stem('copies'), 'copy', 'stem "copies" => "copy"');
+  assertEqual(stem('us'), 'us', 'stem "us" => "us" (short word, no change)');
+  assertEqual(stem('ss'), 'ss', 'stem "ss" => "ss" (too short)');
+
+  const tokens = tokenize('The running cats caught flies!');
+  assert(tokens.includes('run'), 'tokenize produces "run"');
+  assert(tokens.includes('cat'), 'tokenize produces "cat"');
+  assert(tokens.includes('fly'), 'tokenize produces "fly"');
+  assert(tokens.includes('the'), 'tokenize keeps "the" (stemmer only, no stop-word removal)');
+});
+
+describe('v2.1: Auto-Tagging', () => {
+  const { detectTags, detectType, detectImportance } = require('../lib/tags');
+
+  const bugTags = detectTags('Memory leak in React useEffect', 'The component has a leak causing memory to accumulate');
+  assert(bugTags.all.includes('#bug'), 'detectTags finds #bug');
+  assert(bugTags.all.includes('#performance'), 'detectTags finds #performance');
+
+  const apiTags = detectTags('JWT Authentication Pattern', 'API endpoint with OAuth');
+  assert(apiTags.all.includes('#api'), 'detectTags finds #api');
+  assert(apiTags.all.includes('#security'), 'detectTags finds #security');
+
+  const mixedTags = detectTags('Test', 'Writing unit tests with jest and mocha');
+  assert(mixedTags.all.includes('#testing'), 'detectTags finds #testing');
+
+  assertEqual(detectType('Memory leak bug'), 'Bugfix', 'detectType: bug');
+  assertEqual(detectType('JWT auth pattern'), 'Security', 'detectType: security');
+  assertEqual(detectType('Something else'), 'Pattern', 'detectType: default');
+
+  assertEqual(detectImportance('critical security'), 'high', 'importance: high');
+  assertEqual(detectImportance('nice-to-have feature'), 'low', 'importance: low');
+  assertEqual(detectImportance('something normal'), 'medium', 'importance: medium');
+});
+
+describe('v2.1: Relevance Scoring', () => {
+  const { computeRelevanceBoost, initRelevance, getDate } = require('../lib/relevance');
+
+  // Fresh note, never reused
+  const fresh = computeRelevanceBoost({ reuse_count: 1, last_used: getDate(), created: getDate() });
+  assert(fresh > 0.5, 'Fresh note has high relevance');
+
+  // Old note, never reused
+  const old = computeRelevanceBoost({ reuse_count: 0, last_used: '2025-01-01', created: '2025-01-01' });
+  assert(old < fresh, 'Old note has lower relevance than fresh');
+  assert(old >= 0, 'Old note relevance is non-negative');
+
+  // Highly reused
+  const popular = computeRelevanceBoost({ reuse_count: 100, last_used: getDate(), created: getDate() });
+  assert(popular <= 1.0, 'Popular note relevance capped at 1.0');
+  assert(popular >= fresh, 'Popular >= fresh');
+
+  // Backward compat: no fields
+  const empty = computeRelevanceBoost({});
+  assert(empty >= 0, 'Empty meta returns non-negative');
+
+  const rel = initRelevance({});
+  assertEqual(rel.reuse_count, 1, 'initRelevance sets reuse_count=1');
+  assertEqual(rel.last_used, getDate(), 'initRelevance sets last_used');
+});
+
+describe('v2.1: TF-IDF Pure Functions', () => {
+  const { cosineSimilarity, isStopWord } = require('../lib/tfidf');
+
+  assert(isStopWord('the'), '"the" is stop word');
+  assert(isStopWord('and'), '"and" is stop word');
+  assert(!isStopWord('kubernetes'), '"kubernetes" is not stop word');
+  assert(!isStopWord('obsidian'), '"obsidian" is not stop word');
+
+  const a = new Float32Array([1, 0]);
+  const b = new Float32Array([0, 1]);
+  const d = new Float32Array([Math.SQRT1_2, Math.SQRT1_2]); // unit vector at 45°
+  assertEqual(cosineSimilarity(a, a), 1, 'identical vectors = 1.0');
+  assertEqual(cosineSimilarity(a, b), 0, 'orthogonal vectors = 0.0');
+  assert(Math.abs(cosineSimilarity(a, d) - Math.SQRT1_2) < 0.01, '45° vectors ≈ 0.707');
+});
+
+describe('v2.1: Frontmatter Integration', () => {
+  // Remember
+  const remCode = fs.readFileSync(path.join(PROJECT_ROOT, 'bin/obmem-remember.js'), 'utf8');
+  assert(remCode.includes('detectTags'), 'remember imports detectTags');
+  assert(remCode.includes('initRelevance'), 'remember imports initRelevance');
+  assert(remCode.includes('type:'), 'remember generates frontmatter');
+  assert(remCode.includes('tags:'), 'remember generates tags frontmatter');
+  assert(remCode.includes('reuse_count:'), 'remember generates reuse_count frontmatter');
+  assert(remCode.includes('last_used:'), 'remember generates last_used frontmatter');
+
+  // ADR
+  const adrCode = fs.readFileSync(path.join(PROJECT_ROOT, 'bin/obmem-adr.js'), 'utf8');
+  assert(adrCode.includes('detectTags'), 'adr imports detectTags');
+  assert(adrCode.includes('initRelevance'), 'adr imports initRelevance');
+  assert(adrCode.includes('type: ADR'), 'adr generates type frontmatter');
+  assert(adrCode.includes('tags:'), 'adr generates tags frontmatter');
+  assert(adrCode.includes('reuse_count:'), 'adr generates reuse_count frontmatter');
+});
+
+describe('v2.1: Related Notes Hybrid', () => {
+  const relCode = fs.readFileSync(path.join(PROJECT_ROOT, 'bin/obmem-related.js'), 'utf8');
+  assert(relCode.includes('getOrBuildIndex'), 'related imports getOrBuildIndex');
+  assert(relCode.includes('computeRelevanceBoost'), 'related imports computeRelevanceBoost');
+  assert(relCode.includes('trackUsage'), 'related imports trackUsage');
+  assert(relCode.includes('parseFrontmatter'), 'related parses frontmatter');
+  assert(relCode.includes('hybridScore'), 'related computes hybridScore');
+  assert(relCode.includes('--semantic'), 'related supports --semantic');
+});
+
+describe('v2.1: CLI Flag', () => {
+  const cliCode = fs.readFileSync(path.join(PROJECT_ROOT, 'bin/obmem.js'), 'utf8');
+  assert(cliCode.includes('--semantic'), 'CLI mentions --semantic flag');
+});
+
+describe('v2.5: Reflect Command', () => {
+  assertExists('bin/obmem-reflect.js', 'Reflect CLI exists');
+  const reflectCode = fs.readFileSync(path.join(PROJECT_ROOT, 'bin/obmem-reflect.js'), 'utf8');
+  assert(reflectCode.includes('Self-Reflection'), 'reflect generates reflection heading');
+  assert(reflectCode.includes('--project'), 'reflect supports --project flag');
+  assert(reflectCode.includes('--days'), 'reflect supports --days flag');
+  assert(reflectCode.includes('--dry-run'), 'reflect supports --dry-run flag');
+  assert(reflectCode.includes('OpenCode/Reflections'), 'reflect writes to Reflections folder');
+  assert(reflectCode.includes('extractDecisions'), 'reflect extracts decisions');
+  assert(reflectCode.includes('extractBlockers'), 'reflect extracts blockers');
+  assert(reflectCode.includes('extractWins'), 'reflect extracts wins');
+});
+
+describe('v2.5: Goal Tracker Command', () => {
+  assertExists('bin/obmem-goal.js', 'Goal CLI exists');
+  const goalCode = fs.readFileSync(path.join(PROJECT_ROOT, 'bin/obmem-goal.js'), 'utf8');
+  assert(goalCode.includes('Goals:'), 'goal generates goals heading');
+  assert(goalCode.includes('--project'), 'goal supports --project flag');
+  assert(goalCode.includes('--status'), 'goal supports --status flag');
+  assert(goalCode.includes('--list'), 'goal supports --list flag');
+  assert(goalCode.includes('--dry-run'), 'goal supports --dry-run flag');
+  assert(goalCode.includes('OpenCode/Goals'), 'goal writes to Goals folder');
+  assert(goalCode.includes('parseGoals'), 'goal parses existing goals');
+  assert(goalCode.includes('saveGoals'), 'goal saves goals to file');
+});
+
+describe('v2.5: Package Metadata', () => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(PROJECT_ROOT, 'package.json'), 'utf8'));
+  assert(Object.keys(pkg.scripts).includes('reflect'), 'package.json has reflect script');
+  assert(Object.keys(pkg.scripts).includes('goal'), 'package.json has goal script');
+  assert(pkg.bin && pkg.bin['obmem-reflect'], 'package.json has obmem-reflect bin entry');
+  assert(pkg.bin && pkg.bin['obmem-goal'], 'package.json has obmem-goal bin entry');
 });
 
 // ─── Summary ────────────────────────────────────────────

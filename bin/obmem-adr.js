@@ -14,6 +14,9 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
+const { detectTags } = require('../lib/tags');
+const { initRelevance } = require('../lib/relevance');
+
 // ─── Load .mcp-env ──────────────────────────────────────
 function loadMcpEnv() {
   const candidates = [
@@ -95,17 +98,24 @@ function findRelatedNotes(project, keywords) {
 // ─── ADR Template ───────────────────────────────────────
 function buildAdr(title, project, status, body) {
   const num = getNextAdrNumber(project);
-  const keywords = title.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+  const slug = slugify(title);
+  const keywords = title.split(/\s+/).filter(w => w.length > 3);
   const related = findRelatedNotes(project, keywords);
+  const tags = detectTags(title, body || '');
+  const rel = initRelevance({ created: getDate() });
 
   const lines = [
-    `# ADR-${String(num).padStart(3, '0')}: ${title}`,
-    '',
-    `**Status:** ${status}`,
-    `**Datum:** ${getDate()}`,
-    `**Projekt:** ${project}`,
-    '',
     '---',
+    'type: ADR',
+    `status: ${status}`,
+    `project: ${project}`,
+    `created: ${getDate()}`,
+    `tags: [${tags.all.map(t => `'${t}'`).join(', ')}]`,
+    `reuse_count: ${rel.reuse_count}`,
+    `last_used: ${rel.last_used}`,
+    '---',
+    '',
+    `# ADR-${String(num).padStart(3, '0')}: ${title}`,
     '',
     '## Kontext',
     '',

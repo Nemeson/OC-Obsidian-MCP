@@ -17,11 +17,15 @@ Agent Session  ──Stop Hook──►  Obsidian Vault  ──MCP Tools──�
 | Feature | Description |
 |---------|-------------|
 | **Auto Session Logging** | Every session ends with a summary appended to your daily note |
-| **Architecture Decisions** | Save ADRs with `/adr` command |
-| **Learnings & Patterns** | Store reusable solutions with `/remember` |
+| **Architecture Decisions** | Save ADRs with `/adr` command (auto-tagged, tracked) |
+| **Learnings & Patterns** | Store reusable solutions with `/remember` (auto-tagged) |
+| **Smart Search** | Hybrid keyword + TF-IDF `related` with relevance scoring |
+| **Auto-Tagging** | Notes get `#bug`, `#pattern`, `#api`, etc. automatically |
+| **Relevance Tracking** | `reuse_count` and `last_used` frontmatter for ranking |
 | **Context Loading** | Bootstrap sessions from `OpenCode/Context/` notes |
 | **Cross-Platform** | Windows, macOS, Linux |
-| **Zero Config** | Works out of the box after `npm install` + setup |
+| **Zero Dependencies** | No `npm install` needed for core features |
+| **Zero Config** | Works out of the box after setup |
 
 ## Installation
 

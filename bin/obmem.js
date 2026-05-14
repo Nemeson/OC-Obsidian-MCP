@@ -1,15 +1,15 @@
 #!/usr/bin/env node
 /**
- * OC-Obsidian-MCP v2.0: Main CLI Entry Point
+ * ObMem v2.1: Main CLI Entry Point
  *
  * Usage:
- *   oc-obsidian-mcp <command> [options]
+ *   obmem <command> [options]
  *
  * Commands:
  *   session-log                       Save current session summary
  *   adr "Title"                       Create Architecture Decision Record
  *   remember "Title"                  Save reusable learning/pattern
- *   related "query"                   Find related notes via keyword-overlap
+ *   related "query"                   Find related notes via hybrid search
  *   digest --project P --week         Generate weekly digest
  *   load-context                      Load project context from Obsidian
  *   gc                                Run garbage collection
@@ -19,25 +19,27 @@
 const fs = require('fs');
 const path = require('path');
 
-const VERSION = '2.0.0';
+const VERSION = '2.1.0';
 
 function showHelp() {
   console.log(`
-🧠 OC-Obsidian-MCP v${VERSION} — Intelligent memory for AI agents
+🧠 ObMem v${VERSION} — Intelligent memory for AI agents
 
-Usage: oc-obsidian-mcp <command> [options]
+Usage: obmem <command> [options]
 
 Memory Commands:
   session-log            Save session summary to vault
   adr "Title"            Architecture Decision Record     [--project NAME] [--status accepted]
   remember "Title"       Save reusable pattern/bugfix      [--type Bugfix] [--code "fn()"]
+  goal "Title"           Track goals for project           [--project NAME] [--status done]
 
 Discovery Commands:
-  related "query"        Find related notes                [--project NAME] [--limit 10]
+  related "query"        Find related notes                [--project NAME] [--limit 10] [--semantic]
   load-context           Load project context from vault   [--project NAME]
 
 Analysis Commands:
   digest                 Generate weekly/monthly digest    [--project NAME] [--week|--month]
+  reflect                Self-reflection on recent work    [--project NAME] [--days 7]
   gc                     Garbage collect old data          [--project NAME] [--dry-run]
 
 Setup:
@@ -49,10 +51,12 @@ Options:
   --project NAME         Target project (auto-detected if omitted)
 
 Examples:
-  oc-obsidian-mcp adr "Use Kafka for event streaming" --project MyApp
-  oc-obsidian-mcp remember "Memory leak fix in React useEffect"
-  oc-obsidian-mcp digest --project PCAP2KML --week
-  oc-obsidian-mcp related "auth pattern"
+  obmem adr "Use Kafka for event streaming" --project MyApp
+  obmem remember "Memory leak fix in React useEffect"
+  obmem digest --project PCAP2KML --week
+  obmem related "auth pattern"
+  obmem reflect --project PCAP2KML --days 14
+  obmem goal "Implement offline sync" --project PCAP2KML
 `);
 }
 
@@ -76,16 +80,28 @@ function main() {
   }
 
   if (command === '-v' || command === '--version') {
-    console.log(`oc-obsidian-mcp v${VERSION}`);
+    console.log(`obmem v${VERSION}`);
     process.exit(0);
   }
 
   // Strip leading "/" for slash-command compatibility
   const cmd = command.startsWith('/') ? command.slice(1) : command;
 
-  const cmds = ['adr', 'remember', 'related', 'digest', 'session-log', 'load-context', 'gc'];
-  if (cmds.includes(cmd)) {
-    delegate(`${cmd}.js`);
+  // Map commands to obmem-prefixed scripts
+  const aliases = {
+    'adr': 'obmem-adr.js',
+    'remember': 'obmem-remember.js',
+    'related': 'obmem-related.js',
+    'digest': 'obmem-digest.js',
+    'session-log': 'obmem-session-log.js',
+    'load-context': 'obmem-load-context.js',
+    'reflect': 'obmem-reflect.js',
+    'goal': 'obmem-goal.js',
+    'gc': 'obmem-session-log.js', // gc has no own script in bin; keep old behavior
+  };
+
+  if (aliases[cmd]) {
+    delegate(aliases[cmd]);
     return;
   }
 
