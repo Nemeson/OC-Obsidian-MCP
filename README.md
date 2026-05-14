@@ -1,240 +1,241 @@
-# OC-Obsidian-MCP
+# ObMem — Persistent Memory for AI Agents
 
-**Persistent memory for AI agents — backed by your Obsidian vault.**
+> Your AI agents forget everything when the session ends. ObMem fixes that.
 
-Turn your daily notes, architecture decisions, and reusable learnings into a cross-session knowledge base that every agent session can read and write.
+[![npm](https://img.shields.io/npm/v/obmem)](https://www.npmjs.com/package/obmem)
+[![Tests](https://img.shields.io/badge/tests-284%2F284-brightgreen)](.)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%3E%3D20.0.0-blue)](package.json)
+
+**Zero dependencies. Zero config after setup. Cross-platform.**
 
 ```
-Agent Session  ──Stop Hook──►  Obsidian Vault  ──MCP Tools──►  Next Session
-                                     │
-                            ┌────────┼────────┐
-                            │        │        │
-                      Sessions  Decisions  Learnings
+Agent Session ──Stop Hook──► Obsidian Vault ──MCP Tools──► Next Session
+                                    │
+                           ┌────────┼────────┐
+                           │        │        │
+                     Sessions  Decisions  Learnings
 ```
 
-## Features
+Turn every session's insights into a **growing knowledge base** your agents read and write — automatically.
 
-| Feature | Description |
+---
+
+## Why ObMem?
+
+Every AI coding session starts from zero. The bug you fixed yesterday? Forgotten. The ADR from last week? Lost. The pattern that solved that tricky auth issue? Gone.
+
+**ObMem persists what matters** in your Obsidian vault — where it belongs.
+
+- **Sessions** are automatically logged with duration, success rate, and efficiency scores
+- **Architecture Decisions** are tracked with git traceability (`commit_hash`, `scope`)
+- **Learnings & Patterns** evolve into Skills when reused ≥5 times
+- **Conflicts** are detected semantically before they bite you
+- **Smart Search** uses hybrid keyword + TF-IDF scoring with relevance boosting
+
+---
+
+## What's New in v2.5
+
+| Feature | What it does |
 |---------|-------------|
-| **Auto Session Logging** | Every session ends with a summary appended to your daily note |
-| **Architecture Decisions** | Save ADRs with `/adr` command (auto-tagged, tracked) |
-| **Learnings & Patterns** | Store reusable solutions with `/remember` (auto-tagged) |
-| **Smart Search** | Hybrid keyword + TF-IDF `related` with relevance scoring |
-| **Auto-Tagging** | Notes get `#bug`, `#pattern`, `#api`, etc. automatically |
-| **Relevance Tracking** | `reuse_count` and `last_used` frontmatter for ranking |
-| **Context Loading** | Bootstrap sessions from `OpenCode/Context/` notes |
-| **Cross-Platform** | Windows, macOS, Linux |
-| **Zero Dependencies** | No `npm install` needed for core features |
-| **Zero Config** | Works out of the box after setup |
+| **Semantic Conflict Detection** 🔥 | NLP heuristics detect contradictory learnings (negation pairs + topic overlap). No more "always use X / never use X" confusion. |
+| **Skill-Evolution** | Learnings with `reuse_count >= 5` auto-promote to `OpenCode/Skills/{project}/`. Evolved with bidirectional links. |
+| **Git Traceability** | Every ADR and Learning stores `scope: [affected-files]` and `commit_hash` for full lineage. |
+| **Session Analytics** | Auto-computed `duration_minutes`, `success_rate`, and `efficiency_score` in every session log. |
+| **`--semantic` Flag** | Pure TF-IDF mode for `obmem related`. Switch off keyword weighting when you need semantic-only search. |
+| **284 Tests** | Full test coverage for stemmer, tokenizer, TF-IDF, relevance scoring, and hybrid search. |
+
+---
 
 ## Installation
 
 ### Via npm (recommended)
 
 ```bash
-npm install -g oc-obsidian-mcp
+npm install -g obmem
 ```
 
 Or use npx without installing:
 
 ```bash
-npx oc-obsidian-mcp session-log
+npx obmem session-log
+npx obmem adr "Migrated to TypeScript strict mode"
 ```
 
 ### Via Git (for development)
 
 ```bash
-git clone https://github.com/yourusername/oc-obsidian-mcp.git
-cd oc-obsidian-MCP
-npm install
-npm test        # verify everything works
+git clone https://github.com/Nemeson/OC-Obsidian-MCP.git
+cd OC-Obsidian-MCP
+npm test        # 284 tests, zero dependencies
 ```
+
+---
 
 ## Quick Start
 
-### 1. Set your vault path
+### 1. Point to your vault
 
 ```bash
-# Create a config file (or set env var)
-echo "OBSIDIAN_VAULT_PATH=/path/to/your/vault" > config/.mcp-env
+# Linux/macOS
+echo "OBSIDIAN_VAULT_PATH=/home/you/vault" > config/.mcp-env
+
+# Windows (PowerShell)
+Set-Content config/.mcp-env "OBSIDIAN_VAULT_PATH=C:\Users\You\vault"
 ```
 
-### 2. Run setup
+### 2. Run setup (once)
 
 ```bash
-# Global install
-oc-obsidian-mcp setup
-
-# Or via npx
-npx oc-obsidian-mcp setup
-
-# Or use the PowerShell script directly
-pwsh setup.ps1 -VaultPath "/path/to/your/vault"
+npx obmem setup
 ```
 
-### 3. Restart your agent client
-
-Close and reopen OpenCode / Claude Code / Codex. The Obsidian tools will now appear in the tool list.
-
-### 4. Verify
-
-```bash
-# Test MCP server starts
-npx -y mcp-obsidian-vault --version
-
-# Test manual session logging
-npx oc-obsidian-mcp session-log
+This creates the folder structure in your vault:
 ```
+OpenCode/
+├── Sessions/           # Auto-logged session summaries
+├── Decisions/          # Architecture Decision Records
+├── Learnings/          # Reusable patterns & solutions
+├── Skills/             # Auto-promoted learnings (reuse_count >= 5)
+├── Context/            # Session bootstrap notes
+└── _index.md           # Interactive project dashboard
+```
+
+### 3. Use your agents normally
+
+Every session end appends a summary to your daily note. Run `obmem gc` periodically to:
+- Promote mature learnings to Skills
+- Detect cross-learning conflicts
+- Clean stale sessions (90d default)
+
+---
 
 ## CLI Commands
 
-After `npm install -g oc-obsidian-mcp`:
+| Command | Example | Purpose |
+|---------|---------|---------|
+| `obmem session-log` | `npx obmem session-log` | Manually log current session |
+| `obmem adr <title>` | `npx obmem adr "Use Zod over Joi"` | Log architecture decision |
+| `obmem remember <title>` | `npx obmem remember "JWT caching pattern"` | Store a learning/pattern |
+| `obmem related <query>` | `npx obmem related "auth" --max 5` | Hybrid search across all notes |
+| `obmem related -s <q>` | `npx obmem related "error handling" --semantic` | Pure TF-IDF semantic search |
+| `obmem digest` | `npx obmem digest --project my-api` | Generate weekly digest |
+| `obmem gc` | `npx obmem gc --project my-api` | Run garbage collection + skill evolution + conflict detection |
+| `obmem reflect` | `npx obmem reflect` | Daily reflection prompt |
+| `obmem goal` | `npx obmem goal` | Weekly goal planner |
+| `obmem update` | `npx obmem update` | Update to latest version |
+| `obmem setup` | `npx obmem setup` | Interactive first-time setup |
 
-| Command | Description |
-|---------|-------------|
-| `oc-obsidian-mcp setup` | Interactive setup (vault path, config, hooks) |
-| `oc-obsidian-mcp session-log` | Manually save current session summary to vault |
-| `npx oc-obsidian-mcp <command>` | Run without installing |
+**Environment variables:**
+- `OBSIDIAN_VAULT_PATH` — Path to your Obsidian vault root
+- `DRY_RUN=true` — Preview GC changes without modifying files
 
-### npm Scripts (within project)
-
-```bash
-npm test              # run test suite
-npm run test:watch    # run tests in watch mode
-npm run lint          # run eslint on scripts/hooks/bin
-npm run session-log   # manual session logging
-npm run setup         # run setup.ps1
-```
-
-## In-Session Commands
-
-### Save a Decision (`/adr`)
-
-```
-/adr "Why we chose SQLite over PostgreSQL"
-```
-
-Writes a structured ADR to `OpenCode/Decisions/`.
-
-### Save a Learning (`/remember`)
-
-```
-/remember "Rust borrow checker workaround for self-referential structs"
-```
-
-Writes the pattern to `OpenCode/Learnings/`.
-
-### Manual Session Log (`/session-log`)
-
-```
-/session-log
-```
-
-Reads the latest session file and appends the summary to `OpenCode/Sessions/YYYY-MM-DD.md`.
-
-**Note:** For Claude Code, auto-logging via Stop Hook is preferred. For OpenCode, use `/session-log` manually (OpenCode does not support Stop hooks yet).
-
-## Prerequisites
-
-- **Node.js v20+** – [nodejs.org](https://nodejs.org/)
-- **An Obsidian vault** – local directory on disk
-- **Any MCP-compatible client** – OpenCode, Claude Code, Claude Desktop, Codex CLI
-
-## Configuration
-
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `OBSIDIAN_VAULT_PATH` | *(required)* | Path to your Obsidian vault |
-| `DAILY_NOTE_FOLDER` | `OpenCode/Sessions` | Where session logs are stored |
-| `DECISIONS_FOLDER` | `OpenCode/Decisions` | Where ADRs are stored |
-| `LEARNINGS_FOLDER` | `OpenCode/Learnings` | Where patterns are stored |
-| `GIT_AUTO_SYNC` | `true` | Auto-commit vault changes |
-| `DEBUG_HOOK` | `0` | Enable verbose hook logging |
-
-Set these in `config/.mcp-env` (project-local) or as system environment variables.
-
-### MCP Client Config
-
-**OpenCode** – `~/.opencode/mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "obsidian": {
-      "command": "npx",
-      "args": ["-y", "mcp-obsidian-vault"]
-    }
-  }
-}
-```
-
-**Claude Desktop** – `claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "obsidian": {
-      "command": "npx",
-      "args": ["-y", "mcp-obsidian-vault"],
-      "env": {
-        "OBSIDIAN_VAULT_PATH": "/path/to/your/vault"
-      }
-    }
-  }
-}
-```
-
-See `config/` for templates for all supported clients.
-
-## Vault Folder Structure
-
-```
-YourVault/
-└── OpenCode/
-    ├── Sessions/          ← Auto session logs (daily)
-    ├── Decisions/         ← Architecture Decision Records
-    ├── Learnings/         ← Patterns, fixes, snippets
-    └── Context/           ← Project context notes
-```
-
-## Publishing to npm
-
-1. **Set your token** in `secrets.yaml` (never committed):
-
-   ```yaml
-   npm:
-     token: "npm_xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-   ```
-
-2. **Login and publish**:
-
-   ```bash
-   npm login
-   npm publish
-   ```
-
-3. **Or use GitHub Actions** (see `.github/workflows/ci.yml`):
-
-   Set `NPM_TOKEN` as a repository secret.
+---
 
 ## How It Works
 
-This project wraps `mcp-obsidian-vault` (the leading Obsidian MCP server) with:
+### Automatic Session Logging
 
-| Layer | What | How |
-|---|---|---|
-| **MCP Server** | Read/write vault files | `mcp-obsidian-vault` via npx |
-| **Stop Hook** | Auto-save session summaries | `obsidian-session-save.js` (Claude Code only) |
-| **CLI Tool** | Manual session logging | `bin/session-log.js` |
-| **Agent Skill** | In-session memory commands | `skills/obsidian-memory.md` |
+When your agent session ends, ObMem appends a structured summary to your daily note:
+
+```markdown
+## Session Log — 14.05.2026
+
+- **Project:** my-api
+- **Duration:** 45m
+- **Goal:** Refactor auth middleware to use Zod
+- **Key Decisions:** 2
+- **Learnings:** 1
+- **Status:** ✅ Completed
+- **Efficiency Score:** 8.4/10
+```
+
+### Architecture Decisions with Git Traceability
+
+```bash
+npx obmem adr "Use Redis over Memcached for session store"
+```
+
+Creates `OpenCode/Decisions/ADR-007-redis-session-store.md`:
+```yaml
+---
+type: decision
+tags: [architecture, caching, redis]
+scope: [src/session.js, src/cache/redis.js]
+commit_hash: a1b2c3d
+---
+```
+
+### Learnings That Evolve Into Skills
+
+```bash
+npx obmem remember "Zod schema composition for nested configs"
+```
+
+After 5 reuses (tracked via `reuse_count`), this learning auto-promotes to:
+```
+OpenCode/Skills/my-api/
+└── zod-schema-composition.md
+```
+
+...with bidirectional links (`evolved_from`, `evolved_into`) back to the original.
+
+### Semantic Conflict Detection
+
+Two contradictory learnings? ObMem flags them during GC:
+
+```yaml
+conflict_detected: true
+conflict_with: ["use-pnpm-over-npm.md"]
+conflict_type: negation_pair
+conflict_severity: high
+```
+
+No more "always use X" / "never use X" drifting silently in your vault.
+
+---
+
+## Configuration
+
+Create `config/.mcp-env`:
+
+```bash
+# Required
+OBSIDIAN_VAULT_PATH=/path/to/your/vault
+
+# Optional
+DRY_RUN=false          # Set to true to preview GC without changes
+```
+
+Or set via environment before any command:
+```bash
+OBSIDIAN_VAULT_PATH=/home/you/vault npx obmem gc
+```
+
+---
+
+## Tested
+
+```bash
+npm test
+# 284 passed, 0 failed
+```
+
+Zero runtime dependencies. Node 20+ required.
+
+---
+
+## Buy Me a Coffee ☕
+
+ObMem is maintained by a solo developer who believes agents should remember what you teach them.
+
+If this saves you from explaining the same bug twice:
+
+**[buymeacoffee.com/Nemeson](https://buymeacoffee.com/Nemeson)**
+
+---
 
 ## License
 
-MIT – See [LICENSE](LICENSE).
-
-## Credits
-
-- [mcp-obsidian-vault](https://github.com/cyanheads/mcp-obsidian-vault) — The underlying MCP server
-- Obsidian — The best note-taking app for agents
+MIT © [Nemeson](https://github.com/Nemeson)
