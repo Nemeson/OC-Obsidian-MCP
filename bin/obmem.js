@@ -45,6 +45,9 @@ Analysis Commands:
 Setup:
   setup                  Interactive setup (PowerShell)
 
+Maintenance:
+  update                 Check for updates                 [--apply|--force]
+
 Options:
   -h, --help             Show this help
   -v, --version          Show version
@@ -57,6 +60,7 @@ Examples:
   obmem related "auth pattern"
   obmem reflect --project PCAP2KML --days 14
   obmem goal "Implement offline sync" --project PCAP2KML
+  obmem update --apply
 `);
 }
 
