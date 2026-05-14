@@ -2,7 +2,7 @@
 
 > Your AI agents forget everything when the session ends. ObMem fixes that.
 
-[![npm](https://img.shields.io/npm/v/obmem)](https://www.npmjs.com/package/obmem)
+[![npm](https://img.shields.io/badge/npm-v2.5.0-blue)](https://www.npmjs.com/package/obmem)
 [![Tests](https://img.shields.io/badge/tests-284%2F284-brightgreen)](.)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D20.0.0-blue)](package.json)

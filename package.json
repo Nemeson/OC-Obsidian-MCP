@@ -1,6 +1,6 @@
 {
   "name": "obmem",
-  "version": "2.1.0",
+  "version": "2.5.0",
   "description": "Intelligent persistent memory for AI agents (OpenCode / Claude Code / Codex) — backed by your Obsidian vault via MCP",
   "keywords": [
     "opencode",
