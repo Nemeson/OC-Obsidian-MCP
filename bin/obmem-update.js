@@ -15,8 +15,8 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 const PACKAGE_NAME = 'obmem';
-const GITHUB_REPO = 'Nemeson/obmem';
-const NPM_PACKAGE = 'obmem';
+const GITHUB_REPO = 'Nemeson/OC-Obsidian-MCP';
+const NPM_PACKAGE = 'oc-obsidian-mcp';
 
 function errorExit(msg) {
   console.error(`\n❌ ${msg}\n`);
