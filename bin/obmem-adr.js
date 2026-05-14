@@ -61,6 +61,21 @@ function detectProject() {
   } catch { return '_global'; }
 }
 
+function getGitMetadata() {
+  try {
+    const { execSync } = require('child_process');
+    const top = execSync('git rev-parse --show-toplevel', { encoding:'utf8', timeout:3000, stdio:['pipe','pipe','ignore'] }).trim();
+    const hash = execSync('git rev-parse HEAD', { encoding:'utf8', timeout:3000, stdio:['pipe','pipe','ignore'] }).trim();
+    const status = execSync('git status --porcelain', { encoding:'utf8', timeout:3000, stdio:['pipe','pipe','ignore'] }).trim();
+    const changedFiles = status
+      .split('\n')
+      .filter(l => l.trim())
+      .map(l => l.slice(3).trim())
+      .filter(l => l);
+    return { changed_files: changedFiles, commit_hash: hash, repo_root: top };
+  } catch { return {}; }
+}
+
 function getNextAdrNumber(project) {
   const dir = path.join(VAULT_PATH, DECISIONS_FOLDER, project);
   if (!fs.existsSync(dir)) return 1;
@@ -103,6 +118,7 @@ function buildAdr(title, project, status, body) {
   const related = findRelatedNotes(project, keywords);
   const tags = detectTags(title, body || '');
   const rel = initRelevance({ created: getDate() });
+  const git = getGitMetadata();
 
   const lines = [
     '---',
@@ -113,32 +129,34 @@ function buildAdr(title, project, status, body) {
     `tags: [${tags.all.map(t => `'${t}'`).join(', ')}]`,
     `reuse_count: ${rel.reuse_count}`,
     `last_used: ${rel.last_used}`,
-    '---',
-    '',
-    `# ADR-${String(num).padStart(3, '0')}: ${title}`,
-    '',
-    '## Kontext',
-    '',
-    body || '[Warum wurde diese Entscheidung benötigt? Was sind die Randbedingungen?]',
-    '',
-    '## Entscheidung',
-    '',
-    '[Was wurde entschieden? Beschreibe konkret die gewählte Lösung.]',
-    '',
-    '## Alternativen',
-    '',
-    '- **Option A:** [Beschreibung] — [Pro/Contra]',
-    '- **Option B:** [Beschreibung] — [Pro/Contra]',
-    '',
-    '## Konsequenzen',
-    '',
-    '### Positiv',
-    '- ',
-    '',
-    '### Negativ',
-    '- ',
-    '',
   ];
+  if (git.commit_hash) lines.push(`commit_hash: ${git.commit_hash}`);
+  if (git.changed_files && git.changed_files.length) lines.push(`scope: [${git.changed_files.map(f => `'${f}'`).join(', ')}]`);
+  lines.push('---');
+  lines.push('');
+  lines.push(`# ADR-${String(num).padStart(3, '0')}: ${title}`);
+  lines.push('');
+  lines.push('## Kontext');
+  lines.push('');
+  lines.push(body || '[Warum wurde diese Entscheidung benötigt? Was sind die Randbedingungen?]');
+  lines.push('');
+  lines.push('## Entscheidung');
+  lines.push('');
+  lines.push('[Was wurde entschieden? Beschreibe konkret die gewählte Lösung.]');
+  lines.push('');
+  lines.push('## Alternativen');
+  lines.push('');
+  lines.push('- **Option A:** [Beschreibung] — [Pro/Contra]');
+  lines.push('- **Option B:** [Beschreibung] — [Pro/Contra]');
+  lines.push('');
+  lines.push('## Konsequenzen');
+  lines.push('');
+  lines.push('### Positiv');
+  lines.push('- ');
+  lines.push('');
+  lines.push('### Negativ');
+  lines.push('- ');
+  lines.push('');
 
   if (related.length > 0) {
     lines.push('## Verwandte Notizen');

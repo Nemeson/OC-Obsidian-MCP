@@ -59,6 +59,20 @@ function detectProject() {
   } catch { return '_global'; }
 }
 
+function getGitMetadata() {
+  try {
+    const top = execSync('git rev-parse --show-toplevel', { encoding:'utf8', timeout:3000, stdio:['pipe','pipe','ignore'] }).trim();
+    const hash = execSync('git rev-parse HEAD', { encoding:'utf8', timeout:3000, stdio:['pipe','pipe','ignore'] }).trim();
+    const status = execSync('git status --porcelain', { encoding:'utf8', timeout:3000, stdio:['pipe','pipe','ignore'] }).trim();
+    const changedFiles = status
+      .split('\n')
+      .filter(l => l.trim())
+      .map(l => l.slice(3).trim()) // strip XY prefix
+      .filter(l => l);
+    return { changed_files: changedFiles, commit_hash: hash, repo_root: top };
+  } catch { return {}; }
+}
+
 function detectType(title, body) {
   try {
     return libDetectType(title, body);
@@ -111,6 +125,7 @@ function buildLearning(title, project, type, importance, body, code) {
 
   const tags = detectTags(title, body || '');
   const rel = initRelevance({ created: getDate() });
+  const git = getGitMetadata();
 
   let lines = [
     '---',
@@ -121,11 +136,13 @@ function buildLearning(title, project, type, importance, body, code) {
     `tags: [${tags.all.map(t => `'${t}'`).join(', ')}]`,
     `reuse_count: ${rel.reuse_count}`,
     `last_used: ${rel.last_used}`,
-    '---',
-    '',
-    `# ${title}`,
-    '',
   ];
+  if (git.commit_hash) lines.push(`commit_hash: ${git.commit_hash}`);
+  if (git.changed_files && git.changed_files.length) lines.push(`scope: [${git.changed_files.map(f => `'${f}'`).join(', ')}]`);
+  lines.push('---');
+  lines.push('');
+  lines.push(`# ${title}`);
+  lines.push('');
 
   if (body) {
     lines.push('## Problem');

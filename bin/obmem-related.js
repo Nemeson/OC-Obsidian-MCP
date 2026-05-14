@@ -140,11 +140,9 @@ function findRelatedNotes(project, query, maxResults = 10, useSemantic = false) 
         // Recency score
         const recencyScore = buildRecencyScore(filePath);
 
-        const hybridScore =
-          (keywordScore * 0.40) +
-          (tfidfSim * 0.30) +
-          (recencyScore * 0.15) +
-          (relBoost * 0.15);
+        const hybridScore = useSemantic
+          ? tfidfSim // semantic mode: pure TF-IDF
+          : (keywordScore * 0.40) + (tfidfSim * 0.30) + (recencyScore * 0.15) + (relBoost * 0.15);
 
         if (hybridScore >= 0.1) {
           const preview = extractRelevantSnippet(content, keywords, 200);
