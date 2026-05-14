@@ -23,6 +23,9 @@ secrets.yaml
 *.secret
 .env
 
+# Session plans
+.sisyphus/
+
 # Test output
 test-reports/
 coverage/

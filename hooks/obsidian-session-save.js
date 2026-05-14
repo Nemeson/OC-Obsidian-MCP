@@ -162,7 +162,8 @@ function findLatestSession() {
     file: fullPath,
     name: latestFile,
     project,
-    content
+    content,
+    rawContent: content,
   };
 }
 
@@ -205,6 +206,17 @@ function getIndexPath(project) {
   return path.join(getNoteDir(project), 'index.md');
 }
 
+function parseSessionDuration(content) {
+  const startMatch = content.match(/\*\*Started:\*\*\s*(\d{2}:\d{2})/);
+  const endMatch = content.match(/\*\*Last Updated:\*\*\s*(\d{2}:\d{2})/);
+  if (!startMatch || !endMatch) return null;
+  const [sh, sm] = startMatch[1].split(':').map(Number);
+  const [eh, em] = endMatch[1].split(':').map(Number);
+  let mins = (eh * 60 + em) - (sh * 60 + sm);
+  if (mins < 0) mins += 24 * 60; // crossed midnight
+  return mins;
+}
+
 function appendToProjectNote(session) {
   const project = session.project;
   const notePath = getNotePath(project);
@@ -213,11 +225,25 @@ function appendToProjectNote(session) {
 
   const time = getTimeString();
   const branch = getGitBranch(process.cwd());
+  const duration = parseSessionDuration(session.rawContent || session.summary);
+  const durationStr = duration !== null ? `${duration} min` : 'N/A';
+  const efficiency = duration && duration > 0
+    ? (Math.round((session.summary.length / 100) / (duration / 60) * 100) / 100)
+    : null;
 
   const entry = [
     '',
     `## Session — ${time}`,
     `**Project:** ${project} \`${branch}\``,
+    `**Duration:** ${durationStr} ⏱️`,
+    `**Status:** ✅ Completed`,
+    ...(efficiency !== null ? [`**Efficiency:** ${efficiency} blocks/hour`] : []),
+    '- [project:: ' + project + ']',
+    '- [branch:: ' + branch + ']',
+    ...(duration !== null ? ['- [duration_minutes:: ' + duration + ']'] : []),
+    '- [tasks_completed:: 1]',
+    '- [tasks_failed:: 0]',
+    ...(efficiency !== null ? ['- [efficiency_score:: ' + efficiency + ']'] : []),
     '',
     session.summary,
     ''

@@ -18,6 +18,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { detectConflict } = require('../lib/conflict');
 
 // ─── Config ───────────────────────────────────────────────
 
@@ -32,6 +33,7 @@ const TARGET_PROJECT = (() => {
 const FOLDERS = {
   sessions: 'OpenCode/Sessions',
   learnings: 'OpenCode/Learnings',
+  skills: 'OpenCode/Skills',
   archive: 'OpenCode/Archive',
 };
 
@@ -163,6 +165,115 @@ function cleanLearnings(project) {
       }
     }
   }
+  // Pass 3: Skill Evolution — promote high-reuse learnings to Skills
+  const currentFiles = fs.readdirSync(learnDir)
+    .filter(f => f.endsWith('.md'))
+    .map(f => ({
+      file: f,
+      full: path.join(learnDir, f),
+      content: fs.readFileSync(path.join(learnDir, f), 'utf8'),
+    }));
+
+  for (const { file, full, content } of currentFiles) {
+    const fmMatch = content.match(/^---\n([\s\S]*?)\n---\n?/);
+    if (!fmMatch) continue;
+    const fmRaw = fmMatch[1];
+    const reuseMatch = fmRaw.match(/reuse_count:\s*(\d+)/);
+    const reuseCount = reuseMatch ? parseInt(reuseMatch[1], 10) : 0;
+    const hasEvolved = /evolved_into:/.test(fmRaw);
+
+    if (reuseCount >= 5 && !hasEvolved) {
+      const skillsDir = path.join(VAULT_PATH, FOLDERS.skills, project);
+      ensureDir(skillsDir);
+      const skillFile = file; // same name in Skills/
+      const skillPath = path.join(skillsDir, skillFile);
+      if (fs.existsSync(skillPath)) continue; // already promoted
+
+      // Rewrite frontmatter: type=Skill, evolved_from link
+      const newFm = fmRaw
+        .replace(/type:\s*\w+/, 'type: Skill')
+        .trimEnd() + `\nevolved_from: ${path.join(FOLDERS.learnings, project, file).replace(/\\/g, '/')}`;
+
+      const rest = content.slice(fmMatch[0].length);
+      const skillContent = `---\n${newFm}\n---\n${rest}`;
+
+      if (DRY_RUN) {
+        d(`Would promote to Skill: ${file} (reuse ${reuseCount})`);
+      } else {
+        fs.writeFileSync(skillPath, skillContent, 'utf8');
+        // Mark original as evolved
+        const evolvedFm = fmRaw.trimEnd() + `\nevolved_into: ${path.join(FOLDERS.skills, project, skillFile).replace(/\\/g, '/')}`;
+        const newOriginal = `---\n${evolvedFm}\n---\n${rest}`;
+        fs.writeFileSync(full, newOriginal, 'utf8');
+        d(`Promoted ${file} to Skill (reuse ${reuseCount})`);
+      }
+    }
+  }
+}
+
+function parseFrontmatter(content) {
+  const match = content.match(/^---\n([\s\S]*?)\n---\n?/);
+  if (!match) return {};
+  const raw = match[1];
+  const fm = {};
+  for (const line of raw.split('\n')) {
+    const idx = line.indexOf(':');
+    if (idx < 0) continue;
+    const key = line.slice(0, idx).trim();
+    let val = line.slice(idx + 1).trim();
+    if (val.startsWith('[') && val.endsWith(']')) {
+      try { val = JSON.parse(val.replace(/'/g, '"')); } catch { /* keep string */ }
+    }
+    fm[key] = val;
+  }
+  return fm;
+}
+
+function detectConflicts(project) {
+  const learnDir = path.join(VAULT_PATH, FOLDERS.learnings, project);
+  if (!fs.existsSync(learnDir)) return;
+
+  const files = fs.readdirSync(learnDir)
+    .filter(f => f.endsWith('.md'))
+    .map(f => ({
+      file: f,
+      full: path.join(learnDir, f),
+      content: fs.readFileSync(path.join(learnDir, f), 'utf8'),
+    }));
+
+  const flagged = new Set();
+
+  for (let i = 0; i < files.length; i++) {
+    if (flagged.has(i)) continue;
+    for (let j = i + 1; j < files.length; j++) {
+      if (flagged.has(j)) continue;
+
+      const fmA = parseFrontmatter(files[i].content);
+      const fmB = parseFrontmatter(files[j].content);
+      const titleA = files[i].content.match(/^# (.+)/m)?.[1] || '';
+      const titleB = files[j].content.match(/^# (.+)/m)?.[1] || '';
+      const bodyA = files[i].content.replace(/^---\n[\s\S]*?\n---\n?/, '');
+      const bodyB = files[j].content.replace(/^---\n[\s\S]*?\n---\n?/, '');
+
+      const conflict = detectConflict(titleA, bodyA, titleB, bodyB, fmA, fmB);
+      if (conflict) {
+        if (DRY_RUN) {
+          d(`Would flag conflict: ${files[i].file} vs ${files[j].file} (${conflict.type}, ${conflict.severity})`);
+        } else {
+          const conflictTag = `conflict_detected: true\nconflict_with: ['${files[j].file.replace(/'/g, "\\'")}']\nconflict_type: ${conflict.type}\nconflict_severity: ${conflict.severity}`;
+          const fmMatch = files[i].content.match(/^(---\n[\s\S]*?\n---\n?)/);
+          if (fmMatch) {
+            const newFm = fmMatch[1].replace(/---\n?$/m, conflictTag + '\n---');
+            const newContent = files[i].content.replace(fmMatch[1], newFm);
+            fs.writeFileSync(files[i].full, newContent, 'utf8');
+            d(`Flagged conflict: ${files[i].file} vs ${files[j].file}`);
+          }
+        }
+        flagged.add(i);
+        flagged.add(j);
+      }
+    }
+  }
 }
 
 // ─── Main ───────────────────────────────────────────────
@@ -195,6 +306,7 @@ function main() {
     console.log(`\n### ${project}`);
     archiveSessions(project);
     cleanLearnings(project);
+    detectConflicts(project);
   }
 
   console.log(`\nGC complete.`);
