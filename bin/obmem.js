@@ -97,6 +97,7 @@ function main() {
     'load-context': 'obmem-load-context.js',
     'reflect': 'obmem-reflect.js',
     'goal': 'obmem-goal.js',
+    'update': 'obmem-update.js',
     'gc': 'obmem-session-log.js', // gc has no own script in bin; keep old behavior
   };
 

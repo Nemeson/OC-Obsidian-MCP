@@ -395,6 +395,7 @@ describe('Main CLI dispatcher', () => {
   assert(cli.includes("'goal'") || cli.includes('"goal"'), 'Main CLI dispatches goal');
   assert(cli.includes("'gc'") || cli.includes('"gc"'), 'Main CLI dispatches gc');
   assert(cli.includes("'setup'") || cli.includes('"setup"'), 'Main CLI dispatches setup');
+  assert(cli.includes("'update'") || cli.includes('"update"'), 'Main CLI dispatches update');
 });
 
 describe('Auto-learning extraction', () => {
@@ -570,8 +571,20 @@ describe('v2.5: Package Metadata', () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(PROJECT_ROOT, 'package.json'), 'utf8'));
   assert(Object.keys(pkg.scripts).includes('reflect'), 'package.json has reflect script');
   assert(Object.keys(pkg.scripts).includes('goal'), 'package.json has goal script');
+  assert(Object.keys(pkg.scripts).includes('update'), 'package.json has update script');
   assert(pkg.bin && pkg.bin['obmem-reflect'], 'package.json has obmem-reflect bin entry');
   assert(pkg.bin && pkg.bin['obmem-goal'], 'package.json has obmem-goal bin entry');
+  assert(pkg.bin && pkg.bin['obmem-update'], 'package.json has obmem-update bin entry');
+});
+
+describe('v2.5: Self-Update Command', () => {
+  assertExists('bin/obmem-update.js', 'Update CLI exists');
+  const updateCode = fs.readFileSync(path.join(PROJECT_ROOT, 'bin/obmem-update.js'), 'utf8');
+  assert(updateCode.includes('checkGithub'), 'update checks GitHub releases');
+  assert(updateCode.includes('checkNpm'), 'update checks npm registry');
+  assert(updateCode.includes('--apply'), 'update supports --apply flag');
+  assert(updateCode.includes('--force'), 'update supports --force flag');
+  assert(updateCode.includes('obmem-update'), 'update script references itself');
 });
 
 // ─── Summary ────────────────────────────────────────────
