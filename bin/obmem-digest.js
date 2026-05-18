@@ -23,9 +23,9 @@ function loadMcpEnv() {
     if (fs.existsSync(f)) {
       for (const line of fs.readFileSync(f, 'utf8').split(/\r?\n/)) {
         const t = line.trim();
-        if (!t || t.startsWith('#')) continue;
+        if (!t || t.startsWith('#')) {continue;}
         const eq = t.indexOf('=');
-        if (eq === -1) continue;
+        if (eq === -1) {continue;}
         if (!process.env[t.substring(0, eq).trim()]) {
           process.env[t.substring(0, eq).trim()] = t.substring(eq + 1).trim();
         }
@@ -48,7 +48,7 @@ function detectProject() {
 
 function getSessionsInRange(project, from, to) {
   const dir = path.join(VAULT_PATH, 'OpenCode', 'Sessions', project);
-  if (!fs.existsSync(dir)) return [];
+  if (!fs.existsSync(dir)) {return [];}
 
   return fs.readdirSync(dir)
     .filter(f => /^\d{4}-\d{2}-\d{2}\.md$/.test(f) && f !== 'index.md')
@@ -66,7 +66,7 @@ function getSessionsInRange(project, from, to) {
 
 function getLearningsInRange(project, from, to) {
   const dir = path.join(VAULT_PATH, 'OpenCode', 'Learnings', project);
-  if (!fs.existsSync(dir)) return [];
+  if (!fs.existsSync(dir)) {return [];}
   const fromDate = new Date(from);
   const toDate = new Date(to);
 
@@ -87,9 +87,9 @@ function getLearningsInRange(project, from, to) {
 }
 
 function countSessions(sessions) {
-  let count = sessions.length;
-  let totalChars = sessions.reduce((s, ses) => s + ses.content.length, 0);
-  let tools = new Set();
+  const count = sessions.length;
+  const totalChars = sessions.reduce((s, ses) => s + ses.content.length, 0);
+  const tools = new Set();
   for (const ses of sessions) {
     const toolMatch = ses.content.match(/### Tools Used\n(.+?)(?=\n###|\n---|$)/s);
     if (toolMatch) {

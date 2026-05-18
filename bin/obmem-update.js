@@ -15,7 +15,8 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const GITHUB_REPO = 'Nemeson/OC-Obsidian-MCP';
+// const GITHUB_REPO = 'Nemeson/OC-Obsidian-MCP'; // reserved for future remote update
+
 const NPM_PACKAGE = 'oc-obsidian-mcp';
 
 function errorExit(msg) {
@@ -33,7 +34,7 @@ function exec(cmd, opts = {}) {
       ...opts,
     });
   } catch (e) {
-    if (opts.silent) return null;
+    if (opts.silent) {return null;}
     throw e;
   }
 }
@@ -46,7 +47,7 @@ function getCurrentVersion() {
       const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
       return pkg.version;
     }
-  } catch {}
+  } catch { /* noop */ }
   return '0.0.0';
 }
 
@@ -112,7 +113,7 @@ function applyGitUpdate() {
 function checkNpmUpdates() {
   try {
     const result = exec(`npm view ${NPM_PACKAGE} version`, { silent: true })?.trim();
-    if (!result) return null;
+    if (!result) {return null;}
     return {
       version: result,
       isGitInstall: false,
@@ -143,8 +144,8 @@ function compareVersion(a, b) {
   const pa = a.split('.').map(Number);
   const pb = b.split('.').map(Number);
   for (let i = 0; i < 3; i++) {
-    if ((pa[i] || 0) > (pb[i] || 0)) return 1;
-    if ((pa[i] || 0) < (pb[i] || 0)) return -1;
+    if ((pa[i] || 0) > (pb[i] || 0)) {return 1;}
+    if ((pa[i] || 0) < (pb[i] || 0)) {return -1;}
   }
   return 0;
 }
@@ -179,10 +180,10 @@ async function main() {
       };
       console.log(`🚀 Update available: ${gitStatus.behind} commit(s) behind origin/master`);
       console.log(`   Latest: ${gitStatus.commit}`);
-      if (gitStatus.date) console.log(`   Date: ${gitStatus.date}`);
+      if (gitStatus.date) {console.log(`   Date: ${gitStatus.date}`);}
     } else if (gitStatus.ahead > 0) {
       console.log(`ℹ️  Your local branch is ${gitStatus.ahead} commit(s) ahead of origin/master.`);
-      console.log(`   No remote updates available.`);
+      console.log('   No remote updates available.');
     } else {
       console.log('✅ Up to date. Local branch matches origin/master.');
     }

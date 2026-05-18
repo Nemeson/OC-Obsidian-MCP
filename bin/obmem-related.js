@@ -15,7 +15,7 @@ const path = require('path');
 const os = require('os');
 const { getOrBuildIndex, queryIndex } = require('../lib/tfidf');
 const { computeRelevanceBoost, trackUsage } = require('../lib/relevance');
-const { detectTags } = require('../lib/tags');
+// const { detectTags } = require('../lib/tags'); // currently unused
 
 function loadMcpEnv() {
   const candidates = [
@@ -26,9 +26,9 @@ function loadMcpEnv() {
     if (fs.existsSync(f)) {
       for (const line of fs.readFileSync(f, 'utf8').split(/\r?\n/)) {
         const t = line.trim();
-        if (!t || t.startsWith('#')) continue;
+        if (!t || t.startsWith('#')) {continue;}
         const eq = t.indexOf('=');
-        if (eq === -1) continue;
+        if (eq === -1) {continue;}
         if (!process.env[t.substring(0, eq).trim()]) {
           process.env[t.substring(0, eq).trim()] = t.substring(eq + 1).trim();
         }
@@ -51,12 +51,12 @@ function detectProject() {
 
 function parseFrontmatter(content) {
   const match = content.match(/^---\n([\s\S]*?)\n---\n?/);
-  if (!match) return {};
+  if (!match) {return {};}
   const raw = match[1];
   const fm = {};
   for (const line of raw.split('\n')) {
     const idx = line.indexOf(':');
-    if (idx < 0) continue;
+    if (idx < 0) {continue;}
     const key = line.slice(0, idx).trim();
     let val = line.slice(idx + 1).trim();
     if (val.startsWith('[') && val.endsWith(']')) {
@@ -72,7 +72,7 @@ function buildKeywordScore(content, title, keywords) {
   const matched = [];
   for (const kw of keywords) {
     if (title.includes(kw)) { score += 3; matched.push(kw); }
-    if (content.includes(kw)) { score += 1; if (!matched.includes(kw)) matched.push(kw); }
+    if (content.includes(kw)) { score += 1; if (!matched.includes(kw)) {matched.push(kw);} }
   }
   return { score, matched };
 }
@@ -109,13 +109,13 @@ function findRelatedNotes(project, query, maxResults = 10, useSemantic = false) 
     const globalDir = path.join(VAULT_PATH, base, '_global');
 
     for (const dir of [projectDir, globalDir]) {
-      if (!fs.existsSync(dir)) continue;
+      if (!fs.existsSync(dir)) {continue;}
       for (const f of fs.readdirSync(dir)) {
-        if (!f.endsWith('.md')) continue;
-        if (f === 'index.md' || f.startsWith('.')) continue;
+        if (!f.endsWith('.md')) {continue;}
+        if (f === 'index.md' || f.startsWith('.')) {continue;}
 
         const filePath = path.join(dir, f);
-        if (seen.has(filePath)) continue;
+        if (seen.has(filePath)) {continue;}
         seen.add(filePath);
 
         const rawContent = fs.readFileSync(filePath, 'utf8');
@@ -212,8 +212,8 @@ function main() {
     const tagStr = r.tags.length ? `  Tags: ${r.tags.join(' ')}` : '';
     console.log(`  ${r.type}  [${r.path}]  Hybrid: ${r.score}`);
     console.log(`     \u251c kw:${r.keywordScore}  tfidf:${r.tfidfScore}  recency:${r.recencyScore}  reuse:${r.relBoost}`);
-    if (r.reuseCount) console.log(`     \u251c Reused: ${r.reuseCount}\u00d7  Last: ${r.lastUsed || 'n/a'}`);
-    if (tagStr) console.log(`     \u251c ${tagStr}`);
+    if (r.reuseCount) {console.log(`     \u251c Reused: ${r.reuseCount}\u00d7  Last: ${r.lastUsed || 'n/a'}`);}
+    if (tagStr) {console.log(`     \u251c ${tagStr}`);}
     console.log(`     \u2514 ${r.preview}`);
     console.log('');
 
@@ -222,4 +222,6 @@ function main() {
   }
 }
 
-main();
+if (require.main === module) {
+  main();
+}

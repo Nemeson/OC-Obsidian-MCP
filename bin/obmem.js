@@ -19,7 +19,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const VERSION = '2.1.0';
+const VERSION = '2.5.0';
 
 function showHelp() {
   console.log(`

@@ -7,7 +7,7 @@
  */
 
 const path = require('path');
-const { execSync } = require('child_process');
+// const { execSync } = require('child_process'); // currently unused
 
 const loaderPath = path.join(__dirname, '..', 'hooks', 'obsidian-context-loader.js');
 const fs = require('fs');

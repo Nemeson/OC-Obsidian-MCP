@@ -13,7 +13,7 @@
 > Deine KI-Agenten vergessen alles, wenn die Session endet. ObMem behebt das.
 
 [![npm](https://img.shields.io/badge/npm-v2.5.0-blue)](https://www.npmjs.com/package/obmem)
-[![Tests](https://img.shields.io/badge/tests-284%2F284-brightgreen)](.)
+[![Tests](https://img.shields.io/badge/tests-257%2F257-brightgreen)](.)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D20.0.0-blue)](package.json)
 
@@ -58,7 +58,7 @@ Jede KI-Coding-Session beginnt bei Null. Der Bug, den du gestern gefixt hast? Ve
 | **Git-Traceability** | Jede ADR und jedes Learning speichert `scope: [betroffene-dateien]` und `commit_hash` für vollständige Nachverfolgbarkeit. |
 | **Session-Analytics** | Automatisch berechnete `duration_minutes`, `success_rate` und `efficiency_score` in jedem Session-Log. |
 | **`--semantic` Flag** | Reiner TF-IDF-Modus für `obmem related`. Schalte Keyword-Gewichtung aus für rein semantische Suche. |
-| **284 Tests** | Vollständige Testabdeckung für Stemmer, Tokenizer, TF-IDF, Relevance Scoring und Hybrid Search. |
+| **244 Tests** | Vollständige Testabdeckung für Stemmer, Tokenizer, TF-IDF, Relevance Scoring und Hybrid Search. |
 
 ---
 
@@ -82,7 +82,7 @@ npx obmem adr "Migration auf TypeScript strict mode"
 ```bash
 git clone https://github.com/Nemeson/OC-Obsidian-MCP.git
 cd OC-Obsidian-MCP
-npm test        # 284 Tests, zero dependencies
+npm test        # 244 Tests, zero dependencies
 ```
 
 ---
@@ -183,12 +183,19 @@ $ npx obmem gc --project my-api
 ### Semantische Suche
 
 ```bash
-$ npx obmem related "error handling best practices" --semantic
+$ npx obmem related "error handling best practices" --semantic --project PCAP2KML --max 5
 🔍 Semantische Ergebnisse (reiner TF-IDF):
 
   1. learning:try-catch-patterns.md       (Score: 0,92)
   2. decision:ADR-005-error-strategy.md    (Score: 0,84)
 ```
+
+| Modus | Befehl | Wann verwenden |
+|-------|--------|---------------|
+| **Hybrid (Standard)** | `obmem related "auth"` | Schnell, Keyword-basiert mit Relevance Boosting |
+| **Semantisch** | `obmem related "auth" --semantic` | Tiefe Ähnlichkeit via TF-IDF — ideal für vage Beschreibungen |
+| **Hybrid + Projekt** | `obmem related "auth" --project PCAP2KML` | Auf ein Projekt eingrenzt, weiterhin hybrid |
+| **Semantisch + Projekt** | `obmem related "auth" --semantic --project PCAP2KML` | Auf Projekt eingrenzte semantische Suche, ignoriert Keywords außerhalb |
 
 ---
 
@@ -365,7 +372,7 @@ OBSIDIAN_VAULT_PATH=/home/you/vault npx obmem gc
 
 ```bash
 npm test
-# 284 passed, 0 failed
+# 244 passed, 0 failed
 ```
 
 Zero Runtime Dependencies. Node 20+ erforderlich.

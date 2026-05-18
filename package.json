@@ -19,16 +19,23 @@
     "garbage-collection"
   ],
   "homepage": "https://github.com/yourusername/obmem",
-  "bugs": { "url": "https://github.com/yourusername/obmem/issues" },
-  "repository": { "type": "git", "url": "https://github.com/Nemeson/OC-Obsidian-MCP.git" },
+  "bugs": {
+    "url": "https://github.com/yourusername/obmem/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Nemeson/OC-Obsidian-MCP.git"
+  },
   "license": "MIT",
   "author": "Your Name <you@example.com>",
-  "engines": { "node": ">=20.0.0" },
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "main": "bin/obmem.js",
   "scripts": {
     "test": "node test/runner.js",
     "test:watch": "node test/runner.js --watch",
-    "lint": "npx eslint scripts hooks bin",
+    "lint": "npx eslint hooks bin lib test",
     "setup": "pwsh setup.ps1",
     "session-log": "node bin/obmem-session-log.js",
     "reflect": "node bin/obmem-reflect.js",
@@ -61,5 +68,9 @@
     "setup.ps1",
     "README.md",
     "LICENSE"
-  ]
+  ],
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "globals": "^17.6.0"
+  }
 }

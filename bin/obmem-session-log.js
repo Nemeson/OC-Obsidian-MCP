@@ -35,12 +35,12 @@ function loadMcpEnv() {
       const raw = fs.readFileSync(envFile, 'utf8');
       for (const line of raw.split(/\r?\n/)) {
         const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith('#')) continue;
+        if (!trimmed || trimmed.startsWith('#')) {continue;}
         const eq = trimmed.indexOf('=');
-        if (eq === -1) continue;
+        if (eq === -1) {continue;}
         const key = trimmed.substring(0, eq).trim();
         const val = trimmed.substring(eq + 1).trim();
-        if (!process.env[key]) process.env[key] = val;
+        if (!process.env[key]) {process.env[key] = val;}
       }
       break;
     }
@@ -60,7 +60,7 @@ const DEBUG = process.env.DEBUG_SESSION_LOG === '1';
 // ─── Utilities ──────────────────────────────────────────
 
 function d(msg) {
-  if (DEBUG) process.stderr.write(`[session-log] ${msg}\n`);
+  if (DEBUG) {process.stderr.write(`[session-log] ${msg}\n`);}
 }
 
 function getDateString() {
@@ -123,17 +123,17 @@ function extractSummary(filePath) {
   const summaryMatch = content.match(
     /<!-- ECC:SUMMARY:START -->([\s\S]*?)<!-- ECC:SUMMARY:END -->/
   );
-  if (summaryMatch) return summaryMatch[1].trim();
+  if (summaryMatch) {return summaryMatch[1].trim();}
 
   // Try OpenCode JSON format
   try {
     const json = JSON.parse(content);
-    if (json.summary || json.content) return (json.summary || json.content).toString().slice(0, 2000);
+    if (json.summary || json.content) {return (json.summary || json.content).toString().slice(0, 2000);}
   } catch { /* not JSON */ }
 
   // Fallback: first 1000 chars (header section)
   const headerMatch = content.match(/^(#[^\n]*\n.*?)(?=\n#{2,}|\n---|$)/s);
-  if (headerMatch) return headerMatch[1].trim().slice(0, 1500);
+  if (headerMatch) {return headerMatch[1].trim().slice(0, 1500);}
 
   // Ultimate fallback
   return content.slice(0, 1000).trim();

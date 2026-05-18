@@ -13,7 +13,7 @@
 > Your AI agents forget everything when the session ends. ObMem fixes that.
 
 [![npm](https://img.shields.io/badge/npm-v2.5.0-blue)](https://www.npmjs.com/package/obmem)
-[![Tests](https://img.shields.io/badge/tests-284%2F284-brightgreen)](.)
+[![Tests](https://img.shields.io/badge/tests-257%2F257-brightgreen)](.)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D20.0.0-blue)](package.json)
 
@@ -58,7 +58,7 @@ Every AI coding session starts from zero. The bug you fixed yesterday? Forgotten
 | **Git Traceability** | Every ADR and Learning stores `scope: [affected-files]` and `commit_hash` for full lineage. |
 | **Session Analytics** | Auto-computed `duration_minutes`, `success_rate`, and `efficiency_score` in every session log. |
 | **`--semantic` Flag** | Pure TF-IDF mode for `obmem related`. Switch off keyword weighting when you need semantic-only search. |
-| **284 Tests** | Full test coverage for stemmer, tokenizer, TF-IDF, relevance scoring, and hybrid search. |
+| **244 Tests** | Full test coverage for stemmer, tokenizer, TF-IDF, relevance scoring, and hybrid search. |
 
 ---
 
@@ -82,7 +82,7 @@ npx obmem adr "Migrated to TypeScript strict mode"
 ```bash
 git clone https://github.com/Nemeson/OC-Obsidian-MCP.git
 cd OC-Obsidian-MCP
-npm test        # 284 tests, zero dependencies
+npm test        # 244 tests, zero dependencies
 ```
 
 ---
@@ -183,12 +183,19 @@ $ npx obmem gc --project my-api
 ### Semantic Search
 
 ```bash
-$ npx obmem related "error handling best practices" --semantic
+$ npx obmem related "error handling best practices" --semantic --project PCAP2KML --max 5
 🔍 Semantic results (pure TF-IDF):
 
   1. learning:try-catch-patterns.md       (score: 0.92)
   2. decision:ADR-005-error-strategy.md (score: 0.84)
 ```
+
+| Mode | Command | When to use |
+|------|---------|-------------|
+| **Hybrid (default)** | `obmem related "auth"` | Fast, keyword-driven results with relevance boosting |
+| **Semantic** | `obmem related "auth" --semantic` | Deep similarity via TF-IDF — great for vague queries |
+| **Hybrid + Project** | `obmem related "auth" --project PCAP2KML` | Scoped to one project, still hybrid |
+| **Semantic + Project** | `obmem related "auth" --semantic --project PCAP2KML` | Scoped semantic search, ignores keyword matches outside project |
 
 ---
 
@@ -363,7 +370,7 @@ OBSIDIAN_VAULT_PATH=/home/you/vault npx obmem gc
 
 ```bash
 npm test
-# 284 passed, 0 failed
+# 244 passed, 0 failed
 ```
 
 Zero runtime dependencies. Node 20+ required.

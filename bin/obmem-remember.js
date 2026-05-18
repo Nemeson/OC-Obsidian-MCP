@@ -27,9 +27,9 @@ function loadMcpEnv() {
     if (fs.existsSync(f)) {
       for (const line of fs.readFileSync(f, 'utf8').split(/\r?\n/)) {
         const t = line.trim();
-        if (!t || t.startsWith('#')) continue;
+        if (!t || t.startsWith('#')) {continue;}
         const eq = t.indexOf('=');
-        if (eq === -1) continue;
+        if (eq === -1) {continue;}
         process.env[t.substring(0, eq).trim()] = t.substring(eq + 1).trim();
       }
       break;
@@ -78,11 +78,11 @@ function detectType(title, body) {
     return libDetectType(title, body);
   } catch {
     const text = (title + ' ' + (body || '')).toLowerCase();
-    if (text.includes('bug') || text.includes('fehler') || text.includes('error')) return 'Bugfix';
-    if (text.includes('refactor') || text.includes('pattern') || text.includes('muster')) return 'Pattern';
-    if (text.includes('architektur') || text.includes('architecture') || text.includes('design')) return 'Architektur';
-    if (text.includes('test') || text.includes('testing')) return 'Testing';
-    if (text.match(/```/)) return 'Code-Snippet';
+    if (text.includes('bug') || text.includes('fehler') || text.includes('error')) {return 'Bugfix';}
+    if (text.includes('refactor') || text.includes('pattern') || text.includes('muster')) {return 'Pattern';}
+    if (text.includes('architektur') || text.includes('architecture') || text.includes('design')) {return 'Architektur';}
+    if (text.includes('test') || text.includes('testing')) {return 'Testing';}
+    if (text.match(/```/)) {return 'Code-Snippet';}
     return 'Pattern';
   }
 }
@@ -92,8 +92,8 @@ function detectImportance(title, body) {
     return libDetectImportance(title, body);
   } catch {
     const text = (title + ' ' + (body || '')).toLowerCase();
-    if (text.includes('kritisch') || text.includes('critical') || text.includes('security') || text.includes('production')) return 'high';
-    if (text.includes('nice-to-have') || text.includes('optional') || text.includes('cosmetic')) return 'low';
+    if (text.includes('kritisch') || text.includes('critical') || text.includes('security') || text.includes('production')) {return 'high';}
+    if (text.includes('nice-to-have') || text.includes('optional') || text.includes('cosmetic')) {return 'low';}
     return 'medium';
   }
 }
@@ -106,12 +106,12 @@ function findRelated(project, keywords) {
     path.join(VAULT_PATH, process.env.DECISIONS_FOLDER || 'OpenCode/Decisions', project),
   ];
   for (const dir of dirs) {
-    if (!fs.existsSync(dir)) continue;
+    if (!fs.existsSync(dir)) {continue;}
     for (const f of fs.readdirSync(dir)) {
-      if (!f.endsWith('.md')) continue;
+      if (!f.endsWith('.md')) {continue;}
       const content = fs.readFileSync(path.join(dir, f), 'utf8').toLowerCase();
-      let score = keywords.reduce((s, kw) => s + (content.includes(kw.toLowerCase()) ? 1 : 0), 0);
-      if (score >= 2) results.push({ file: f, score });
+      const score = keywords.reduce((s, kw) => s + (content.includes(kw.toLowerCase()) ? 1 : 0), 0);
+      if (score >= 2) {results.push({ file: f, score });}
     }
   }
   return results.sort((a, b) => b.score - a.score).slice(0, 5);
@@ -119,7 +119,7 @@ function findRelated(project, keywords) {
 
 // ─── Template ───────────────────────────────────────────
 function buildLearning(title, project, type, importance, body, code) {
-  const slug = slugify(title);
+  // const slug = slugify(title); // reserved for future filename format
   const keywords = title.split(/\s+/).filter(w => w.length > 3);
   const related = findRelated(project, keywords);
 
@@ -127,7 +127,7 @@ function buildLearning(title, project, type, importance, body, code) {
   const rel = initRelevance({ created: getDate() });
   const git = getGitMetadata();
 
-  let lines = [
+  const lines = [
     '---',
     `type: ${type}`,
     `project: ${project}`,
@@ -137,8 +137,8 @@ function buildLearning(title, project, type, importance, body, code) {
     `reuse_count: ${rel.reuse_count}`,
     `last_used: ${rel.last_used}`,
   ];
-  if (git.commit_hash) lines.push(`commit_hash: ${git.commit_hash}`);
-  if (git.changed_files && git.changed_files.length) lines.push(`scope: [${git.changed_files.map(f => `'${f}'`).join(', ')}]`);
+  if (git.commit_hash) {lines.push(`commit_hash: ${git.commit_hash}`);}
+  if (git.changed_files && git.changed_files.length) {lines.push(`scope: [${git.changed_files.map(f => `'${f}'`).join(', ')}]`);}
   lines.push('---');
   lines.push('');
   lines.push(`# ${title}`);
@@ -187,23 +187,23 @@ function buildLearning(title, project, type, importance, body, code) {
 }
 
 // ─── Duplicate Check ────────────────────────────────────
-function isDuplicate(project, title, content) {
+function isDuplicate(project, title, _content) {
   const dir = path.join(VAULT_PATH, LEARNINGS_FOLDER, project);
-  if (!fs.existsSync(dir)) return false;
+  if (!fs.existsSync(dir)) {return false;}
 
   const slug = slugify(title);
-  if (fs.existsSync(path.join(dir, slug + '.md'))) return true;
+  if (fs.existsSync(path.join(dir, slug + '.md'))) {return true;}
 
   // Check content similarity
   const keywords = title.toLowerCase().split(/\s+/).filter(w => w.length > 3);
   for (const f of fs.readdirSync(dir)) {
-    if (!f.endsWith('.md')) continue;
+    if (!f.endsWith('.md')) {continue;}
     const existing = fs.readFileSync(path.join(dir, f), 'utf8').toLowerCase();
     let match = 0;
     for (const kw of keywords) {
-      if (existing.includes(kw)) match++;
+      if (existing.includes(kw)) {match++;}
     }
-    if (match >= keywords.length * 0.7) return true; // 70% keyword overlap
+    if (match >= keywords.length * 0.7) {return true;} // 70% keyword overlap
   }
   return false;
 }
@@ -239,7 +239,7 @@ function main() {
 
   const content = buildLearning(title, project, type, importance, body, code);
   const dir = path.join(VAULT_PATH, LEARNINGS_FOLDER, project);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  if (!fs.existsSync(dir)) {fs.mkdirSync(dir, { recursive: true });}
   const filename = slugify(title) + '.md';
   const filePath = path.join(dir, filename);
 

@@ -168,7 +168,7 @@ describe('Relevance Scoring', () => {
 describe('Hybrid Score Composition', () => {
   // Simulate the hybrid score logic from obmem-related.js
   function calcHybrid(keywordScore, tfidfScore, recencyScore, relBoost) {
-    return (keywordScore * 0.40) + (tfidfSim * 0.30) + (recencyScore * 0.15) + (relBoost * 0.15);
+    return (keywordScore * 0.40) + (tfidfScore * 0.30) + (recencyScore * 0.15) + (relBoost * 0.15);
   }
 
   // Case: exact keyword match (high keyword, low tfidf if new doc)
@@ -187,10 +187,10 @@ describe('Hybrid Score Composition', () => {
 // ─── Summary ────────────────────────────────────────────
 
 const total = results.passed + results.failed;
-console.log(`\n  ─────────────────────────────`);
+console.log('\n  ─────────────────────────────');
 console.log(`  ${results.passed}/${total} tests passed, ${results.failed} failed`);
 if (results.failed > 0) {
-  console.log(`\n  Failures:`);
+  console.log('\n  Failures:');
   for (const e of results.errors) {
     console.log(`    - ${e.message}`);
   }

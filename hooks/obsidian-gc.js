@@ -47,12 +47,12 @@ const THRESHOLDS = {
 // ─── Utilities ────────────────────────────────────────────
 
 function d(msg) {
-  if (!DRY_RUN) console.log(`[gc] ${msg}`);
-  else console.log(`[gc-dry] ${msg}`);
+  if (!DRY_RUN) {console.log(`[gc] ${msg}`);}
+  else {console.log(`[gc-dry] ${msg}`);}
 }
 
 function ensureDir(dirPath) {
-  if (!fs.existsSync(dirPath)) fs.mkdirSync(dirPath, { recursive: true });
+  if (!fs.existsSync(dirPath)) {fs.mkdirSync(dirPath, { recursive: true });}
 }
 
 function daysSince(date) {
@@ -61,7 +61,7 @@ function daysSince(date) {
 
 function isOlderThan(filename, days) {
   const match = filename.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!match) return false;
+  if (!match) {return false;}
   const fileDate = new Date(`${match[1]}-${match[2]}-${match[3]}`);
   return daysSince(fileDate) > days;
 }
@@ -70,7 +70,7 @@ function isOlderThan(filename, days) {
 
 function archiveSessions(project) {
   const sourceDir = path.join(VAULT_PATH, FOLDERS.sessions, project);
-  if (!fs.existsSync(sourceDir)) return;
+  if (!fs.existsSync(sourceDir)) {return;}
 
   const files = fs.readdirSync(sourceDir)
     .filter(f => f.endsWith('.md') && f !== 'index.md')
@@ -105,12 +105,12 @@ function similarity(a, b) {
 
 function cleanLearnings(project) {
   const learnDir = path.join(VAULT_PATH, FOLDERS.learnings, project);
-  if (!fs.existsSync(learnDir)) return;
+  if (!fs.existsSync(learnDir)) {return;}
 
   const files = fs.readdirSync(learnDir)
     .filter(f => f.endsWith('.md'));
 
-  const now = new Date();
+  // const now = new Date(); // reserved for future age calculations
 
   // Pass 1: delete low-importance old learnings
   for (const f of files) {
@@ -120,7 +120,7 @@ function cleanLearnings(project) {
     const content = fs.readFileSync(full, 'utf8');
 
     if (content.includes('#low') && age > THRESHOLDS.lowDelete) {
-      if (DRY_RUN) d(`Would delete #low: ${f} (${age}d)`);
+      if (DRY_RUN) {d(`Would delete #low: ${f} (${age}d)`);}
       else { fs.unlinkSync(full); d(`Deleted #low: ${f}`); }
       continue;
     }
@@ -128,7 +128,7 @@ function cleanLearnings(project) {
     if (content.includes('#medium') && age > THRESHOLDS.mediumArchive) {
       const archiveDir = path.join(VAULT_PATH, FOLDERS.archive, 'Learnings', project);
       ensureDir(archiveDir);
-      if (DRY_RUN) d(`Would archive #medium: ${f}`);
+      if (DRY_RUN) {d(`Would archive #medium: ${f}`);}
       else {
         fs.renameSync(full, path.join(archiveDir, f));
         d(`Archived #medium: ${f}`);
@@ -147,9 +147,9 @@ function cleanLearnings(project) {
   const merged = new Set();
 
   for (let i = 0; i < remaining.length; i++) {
-    if (merged.has(i)) continue;
+    if (merged.has(i)) {continue;}
     for (let j = i + 1; j < remaining.length; j++) {
-      if (merged.has(j)) continue;
+      if (merged.has(j)) {continue;}
       const sim = similarity(remaining[i].content, remaining[j].content);
       if (sim >= THRESHOLDS.similarity) {
         if (DRY_RUN) {
@@ -176,7 +176,7 @@ function cleanLearnings(project) {
 
   for (const { file, full, content } of currentFiles) {
     const fmMatch = content.match(/^---\n([\s\S]*?)\n---\n?/);
-    if (!fmMatch) continue;
+    if (!fmMatch) {continue;}
     const fmRaw = fmMatch[1];
     const reuseMatch = fmRaw.match(/reuse_count:\s*(\d+)/);
     const reuseCount = reuseMatch ? parseInt(reuseMatch[1], 10) : 0;
@@ -187,7 +187,7 @@ function cleanLearnings(project) {
       ensureDir(skillsDir);
       const skillFile = file; // same name in Skills/
       const skillPath = path.join(skillsDir, skillFile);
-      if (fs.existsSync(skillPath)) continue; // already promoted
+      if (fs.existsSync(skillPath)) {continue;} // already promoted
 
       // Rewrite frontmatter: type=Skill, evolved_from link
       const newFm = fmRaw
@@ -213,12 +213,12 @@ function cleanLearnings(project) {
 
 function parseFrontmatter(content) {
   const match = content.match(/^---\n([\s\S]*?)\n---\n?/);
-  if (!match) return {};
+  if (!match) {return {};}
   const raw = match[1];
   const fm = {};
   for (const line of raw.split('\n')) {
     const idx = line.indexOf(':');
-    if (idx < 0) continue;
+    if (idx < 0) {continue;}
     const key = line.slice(0, idx).trim();
     let val = line.slice(idx + 1).trim();
     if (val.startsWith('[') && val.endsWith(']')) {
@@ -231,7 +231,7 @@ function parseFrontmatter(content) {
 
 function detectConflicts(project) {
   const learnDir = path.join(VAULT_PATH, FOLDERS.learnings, project);
-  if (!fs.existsSync(learnDir)) return;
+  if (!fs.existsSync(learnDir)) {return;}
 
   const files = fs.readdirSync(learnDir)
     .filter(f => f.endsWith('.md'))
@@ -244,9 +244,9 @@ function detectConflicts(project) {
   const flagged = new Set();
 
   for (let i = 0; i < files.length; i++) {
-    if (flagged.has(i)) continue;
+    if (flagged.has(i)) {continue;}
     for (let j = i + 1; j < files.length; j++) {
-      if (flagged.has(j)) continue;
+      if (flagged.has(j)) {continue;}
 
       const fmA = parseFrontmatter(files[i].content);
       const fmB = parseFrontmatter(files[j].content);
@@ -280,7 +280,7 @@ function detectConflicts(project) {
 
 function getProjects() {
   const sessionDir = path.join(VAULT_PATH, FOLDERS.sessions);
-  if (!fs.existsSync(sessionDir)) return [];
+  if (!fs.existsSync(sessionDir)) {return [];}
   return fs.readdirSync(sessionDir).filter(f => {
     const full = path.join(sessionDir, f);
     return fs.statSync(full).isDirectory();
@@ -309,7 +309,7 @@ function main() {
     detectConflicts(project);
   }
 
-  console.log(`\nGC complete.`);
+  console.log('\nGC complete.');
 }
 
 main();

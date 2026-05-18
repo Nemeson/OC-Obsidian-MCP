@@ -21,16 +21,16 @@ const PROJECT_ROOT = path.resolve(__dirname, '..');
 
 function loadMcpEnv() {
   const envFile = path.join(PROJECT_ROOT, 'config', '.mcp-env');
-  if (!fs.existsSync(envFile)) return;
+  if (!fs.existsSync(envFile)) {return;}
   const raw = fs.readFileSync(envFile, 'utf8');
   for (const line of raw.split(/\r?\n/)) {
     const t = line.trim();
-    if (!t || t.startsWith('#')) continue;
+    if (!t || t.startsWith('#')) {continue;}
     const eq = t.indexOf('=');
-    if (eq === -1) continue;
+    if (eq === -1) {continue;}
     const key = t.substring(0, eq).trim();
     const val = t.substring(eq + 1).trim();
-    if (!process.env[key]) process.env[key] = val;
+    if (!process.env[key]) {process.env[key] = val;}
   }
 }
 
@@ -55,12 +55,8 @@ const LIMITS = {
 
 // ─── Utilities ──────────────────────────────────────────
 
-function ensureDir(dirPath) {
-  if (!fs.existsSync(dirPath)) fs.mkdirSync(dirPath, { recursive: true });
-}
-
 function listDir(dirPath) {
-  if (!fs.existsSync(dirPath)) return [];
+  if (!fs.existsSync(dirPath)) {return [];}
   return fs.readdirSync(dirPath)
     .map(f => path.join(dirPath, f))
     .filter(f => fs.statSync(f).isFile() && f.endsWith('.md'));
@@ -110,7 +106,7 @@ function loadBootstrap() {
 
 function loadProjectContext(project) {
   const projectDir = path.join(VAULT_PATH, FOLDERS.context, project);
-  if (!fs.existsSync(projectDir)) return [];
+  if (!fs.existsSync(projectDir)) {return [];}
 
   const files = listDir(projectDir).slice(0, LIMITS.contextFiles);
   return files.map(f => ({
@@ -121,7 +117,7 @@ function loadProjectContext(project) {
 
 function loadDecisions(project) {
   const decisionDir = path.join(VAULT_PATH, FOLDERS.decisions, project);
-  if (!fs.existsSync(decisionDir)) return [];
+  if (!fs.existsSync(decisionDir)) {return [];}
 
   const files = listDir(decisionDir).slice(0, LIMITS.decisions);
   return files.map(f => ({
@@ -132,7 +128,7 @@ function loadDecisions(project) {
 
 function loadLearnings(project) {
   const learningDir = path.join(VAULT_PATH, FOLDERS.learnings, project);
-  if (!fs.existsSync(learningDir)) return [];
+  if (!fs.existsSync(learningDir)) {return [];}
 
   const files = listDir(learningDir).slice(0, LIMITS.learnings);
   return files.map(f => ({
@@ -143,7 +139,7 @@ function loadLearnings(project) {
 
 function loadRecentSessions(project) {
   const sessionDir = path.join(VAULT_PATH, FOLDERS.context.replace('Context','Sessions'), project);
-  if (!fs.existsSync(sessionDir)) return [];
+  if (!fs.existsSync(sessionDir)) {return [];}
 
   const files = listDir(sessionDir)
     .filter(f => path.basename(f) !== 'index.md')
@@ -162,21 +158,21 @@ function loadRecentSessions(project) {
 
 function formatContext(project, data) {
   const lines = [
-    `\n\n<!-- OBSIDIAN CONTEXT START -->`,
+    '\n\n<!-- OBSIDIAN CONTEXT START -->',
     `# 🧠 Obsidian Context for ${project}`,
     `\n*Loaded from vault: ${VAULT_PATH}*\n`,
   ];
 
   // Bootstrap
   if (data.bootstrap) {
-    lines.push(`---`);
-    lines.push(`## Global Bootstrap`);
+    lines.push('---');
+    lines.push('## Global Bootstrap');
     lines.push(data.bootstrap);
   }
 
   // Project Context
   if (data.projectContexts.length > 0) {
-    lines.push(`\n---`);
+    lines.push('\n---');
     lines.push(`## Project Context (${data.projectContexts.length} files)`);
     for (const ctx of data.projectContexts) {
       lines.push(`\n### ${ctx.source}`);
@@ -186,7 +182,7 @@ function formatContext(project, data) {
 
   // Recent Sessions
   if (data.sessions.length > 0) {
-    lines.push(`\n---`);
+    lines.push('\n---');
     lines.push(`## Recent Sessions (${data.sessions.length} sessions)`);
     for (const s of data.sessions) {
       lines.push(`- **${s.date}** — \`[${s.source}]\``);
@@ -195,7 +191,7 @@ function formatContext(project, data) {
 
   // Decisions
   if (data.decisions.length > 0) {
-    lines.push(`\n---`);
+    lines.push('\n---');
     lines.push(`## Decisions (${data.decisions.length} ADRs)`);
     for (const dec of data.decisions) {
       lines.push(`\n### ${path.basename(dec.source, '.md')}`);
@@ -205,7 +201,7 @@ function formatContext(project, data) {
 
   // Learnings
   if (data.learnings.length > 0) {
-    lines.push(`\n---`);
+    lines.push('\n---');
     lines.push(`## Learnings (${data.learnings.length} patterns)`);
     for (const l of data.learnings) {
       lines.push(`\n### ${path.basename(l.source, '.md')}`);
@@ -213,7 +209,7 @@ function formatContext(project, data) {
     }
   }
 
-  lines.push(`\n<!-- OBSIDIAN CONTEXT END -->\n`);
+  lines.push('\n<!-- OBSIDIAN CONTEXT END -->\n');
   return lines.join('\n');
 }
 
@@ -252,7 +248,7 @@ function main() {
   try {
     const refPath = path.join(VAULT_PATH, FOLDERS.context, '.last-loaded.md');
     fs.writeFileSync(refPath, `# Last Loaded Context\n\n- **Project:** ${project}\n- **Time:** ${new Date().toISOString()}\n- **Files:** ${data.projectContexts.length} contexts, ${data.decisions.length} decisions, ${data.learnings.length} learnings\n`, { encoding: 'utf8' });
-  } catch {}
+  } catch { /* noop */ }
 }
 
 main();

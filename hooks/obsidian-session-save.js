@@ -26,16 +26,16 @@ const HOOK_SCRIPT = process.argv[1] || __filename;
 function loadMcpEnv() {
   const scriptDir = path.dirname(HOOK_SCRIPT);
   const envFile = path.join(scriptDir, '..', 'config', '.mcp-env');
-  if (!fs.existsSync(envFile)) return;
+  if (!fs.existsSync(envFile)) {return;}
   const raw = fs.readFileSync(envFile, 'utf8');
   for (const line of raw.split(/\r?\n/)) {
     const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) continue;
+    if (!trimmed || trimmed.startsWith('#')) {continue;}
     const eq = trimmed.indexOf('=');
-    if (eq === -1) continue;
+    if (eq === -1) {continue;}
     const key = trimmed.substring(0, eq).trim();
     const val = trimmed.substring(eq + 1).trim();
-    if (!process.env[key]) process.env[key] = val;
+    if (!process.env[key]) {process.env[key] = val;}
   }
 }
 
@@ -58,7 +58,7 @@ const FOLDERS = {
 // ─── Utilities ──────────────────────────────────────────
 
 function d(msg) {
-  if (DEBUG) process.stderr.write(`[obsidian-hook] ${msg}\n`);
+  if (DEBUG) {process.stderr.write(`[obsidian-hook] ${msg}\n`);}
 }
 
 function getDateString() {
@@ -97,10 +97,10 @@ function getGitBranch(cwd) {
 }
 
 function gitAutoSync(cwd) {
-  if (!GIT_AUTO_SYNC) return;
+  if (!GIT_AUTO_SYNC) {return;}
   try {
     const top = gitTopLevel(cwd);
-    if (!top) return;
+    if (!top) {return;}
     execSync('git add -A', { encoding:'utf8', timeout:10000, cwd:top, stdio:['pipe','pipe','ignore'] });
     try {
       execSync('git commit -m "vault: auto-save session" --no-verify', {
@@ -133,7 +133,7 @@ function detectProject(sessionFilePath) {
 
   // Fallback: try git
   const gitProject = getGitProjectName(path.dirname(sessionFilePath));
-  if (gitProject) return gitProject;
+  if (gitProject) {return gitProject;}
 
   return '_global';
 }
@@ -151,7 +151,7 @@ function findLatestSession() {
     .sort()
     .reverse();
 
-  if (files.length === 0) return null;
+  if (files.length === 0) {return null;}
 
   const latestFile = files[0];
   const fullPath = path.join(SESSIONS_DIR, latestFile);
@@ -183,7 +183,7 @@ function extractSummary(content) {
   // 2. OpenCode JSON format
   try {
     const json = JSON.parse(content);
-    if (json.summary) return String(json.summary).trim();
+    if (json.summary) {return String(json.summary).trim();}
   } catch { /* not JSON */ }
 
   // 3. Fallback: first 1500 chars (header section)
@@ -209,11 +209,11 @@ function getIndexPath(project) {
 function parseSessionDuration(content) {
   const startMatch = content.match(/\*\*Started:\*\*\s*(\d{2}:\d{2})/);
   const endMatch = content.match(/\*\*Last Updated:\*\*\s*(\d{2}:\d{2})/);
-  if (!startMatch || !endMatch) return null;
+  if (!startMatch || !endMatch) {return null;}
   const [sh, sm] = startMatch[1].split(':').map(Number);
   const [eh, em] = endMatch[1].split(':').map(Number);
   let mins = (eh * 60 + em) - (sh * 60 + sm);
-  if (mins < 0) mins += 24 * 60; // crossed midnight
+  if (mins < 0) {mins += 24 * 60;} // crossed midnight
   return mins;
 }
 
@@ -236,7 +236,7 @@ function appendToProjectNote(session) {
     `## Session — ${time}`,
     `**Project:** ${project} \`${branch}\``,
     `**Duration:** ${durationStr} ⏱️`,
-    `**Status:** ✅ Completed`,
+    '**Status:** ✅ Completed',
     ...(efficiency !== null ? [`**Efficiency:** ${efficiency} blocks/hour`] : []),
     '- [project:: ' + project + ']',
     '- [branch:: ' + branch + ']',
@@ -273,7 +273,7 @@ function updateProjectIndex(session) {
   }
 
   // Update header if it exists
-  const headerRegex = /^(# .+)\n\n/m;
+  // const headerRegex = /^(# .+)\n\n/m; // reserved for future header replacement
   let updated = existing;
   if (!updated) {
     updated = `# Session Index — ${project}\n\n${entryLine}\n`;
@@ -292,11 +292,11 @@ function updateProjectIndex(session) {
 
 function autoLearn(session) {
   const keywords = extractKeywords(session.summary);
-  if (keywords.length === 0) return;
+  if (keywords.length === 0) {return;}
 
   // Detect if this session solved a bug or discovered a pattern
   const patterns = detectPatterns(session.summary);
-  if (patterns.length === 0) return;
+  if (patterns.length === 0) {return;}
 
   const learnDir = path.join(VAULT_PATH, FOLDERS.learnings, session.project);
   ensureDir(learnDir);
@@ -345,7 +345,7 @@ function extractKeywords(summary) {
 
   // Count word frequency
   const freq = {};
-  for (const w of words) freq[w] = (freq[w] || 0) + 1;
+  for (const w of words) {freq[w] = (freq[w] || 0) + 1;}
 
   // Return words mentioned 2+ times
   return Object.entries(freq)
@@ -408,7 +408,7 @@ function extractBugTitle(summary) {
   const lines = summary.split('\n').filter(l => l.trim().length > 10);
   for (const line of lines) {
     const clean = line.replace(/^[#*-]+\s*/, '').trim();
-    if (/bug|fehler|fix|error/i.test(clean)) return clean.slice(0, 100);
+    if (/bug|fehler|fix|error/i.test(clean)) {return clean.slice(0, 100);}
   }
   return null;
 }
@@ -417,7 +417,7 @@ function extractPatternTitle(summary) {
   const lines = summary.split('\n').filter(l => l.trim().length > 10);
   for (const line of lines) {
     const clean = line.replace(/^[#*-]+\s*/, '').trim();
-    if (/pattern|refactor|architecture|design/i.test(clean)) return clean.slice(0, 100);
+    if (/pattern|refactor|architecture|design/i.test(clean)) {return clean.slice(0, 100);}
   }
   return null;
 }
@@ -426,7 +426,7 @@ function extractToolTitle(summary) {
   const lines = summary.split('\n').filter(l => l.trim().length > 10);
   for (const line of lines) {
     const clean = line.replace(/^[#*-]+\s*/, '').trim();
-    if (/library|tool|package|npm|install/i.test(clean)) return clean.slice(0, 100);
+    if (/library|tool|package|npm|install/i.test(clean)) {return clean.slice(0, 100);}
   }
   return null;
 }
@@ -441,7 +441,7 @@ function extractFirstParagraph(summary, maxLen) {
 function shouldRunGC() {
   // Run GC once per day
   const gcFlag = path.join(VAULT_PATH, FOLDERS.sessions, '.last-gc');
-  if (!fs.existsSync(gcFlag)) return true;
+  if (!fs.existsSync(gcFlag)) {return true;}
 
   const last = new Date(fs.readFileSync(gcFlag, 'utf8'));
   const now = new Date();
@@ -453,7 +453,7 @@ function runGC(project) {
   d('Running garbage collection...');
 
   const sessionsDir = getNoteDir(project);
-  if (!fs.existsSync(sessionsDir)) return;
+  if (!fs.existsSync(sessionsDir)) {return;}
 
   const files = fs.readdirSync(sessionsDir)
     .filter(f => f.endsWith('.md') && f !== 'index.md');
@@ -465,7 +465,7 @@ function runGC(project) {
   for (const f of files) {
     // Parse date from filename: YYYY-MM-DD.md
     const dateMatch = f.match(/^(\d{4})-(\d{2})-(\d{2})\.md$/);
-    if (!dateMatch) continue;
+    if (!dateMatch) {continue;}
 
     const fileDate = new Date(`${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`);
     if (fileDate < cutoff) {

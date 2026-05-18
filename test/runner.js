@@ -243,10 +243,10 @@ describe('Config templates', () => {
 describe('README quality', () => {
   const readme = fs.readFileSync(path.join(PROJECT_ROOT, 'README.md'), 'utf8');
 
-  assert(readme.includes('# OC-Obsidian-MCP'), 'README has title');
-  assert(readme.includes('## Prerequisites'), 'README has Prerequisites');
+  assert(readme.includes('# ObMem') || readme.includes('# OC-Obsidian-MCP'), 'README has title');
+  assert(readme.includes('## Installation'), 'README has Installation');
   assert(readme.includes('## Quick Start'), 'README has Quick Start');
-  assert(readme.includes('## Environment Variables'), 'README has Environment Variables');
+  assert(readme.includes('## How It Works'), 'README has How It Works');
   assert(readme.includes('## License'), 'README has license section');
   assert(readme.includes('MIT'), 'README mentions MIT');
 
@@ -314,7 +314,7 @@ describe('Dry-run: hook script', () => {
   } catch (e) {
     assert(false, `Dry-run failed: ${e.message}`);
   } finally {
-    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* noop */ }
   }
 });
 
@@ -534,6 +534,53 @@ describe('v2.1: Related Notes Hybrid', () => {
   assert(relCode.includes('parseFrontmatter'), 'related parses frontmatter');
   assert(relCode.includes('hybridScore'), 'related computes hybridScore');
   assert(relCode.includes('--semantic'), 'related supports --semantic');
+
+  // Edge case: short query yields empty keywords
+  const emptyKw = 'a'.repeat(2).toLowerCase().split(/\s+/).filter(w => w.length > 2);
+  assertEqual(emptyKw.length, 0, 'short query yields empty keywords');
+});
+
+describe('v2.1: Hybrid Search Edge Cases', () => {
+  const { buildIndex, queryIndex, cosineSimilarity } = require('../lib/tfidf');
+  const { tokenize, stem } = require('../lib/stemmer');
+
+  // Empty vault returns empty index
+  const emptyIdx = buildIndex(path.join(PROJECT_ROOT, 'test-empty-vault'));
+  assertEqual(emptyIdx.docs.length, 0, 'empty vault yields empty docs');
+  assertEqual(Object.keys(emptyIdx.vectors).length, 0, 'empty vault yields no vectors');
+
+  // Query on empty index returns empty
+  const emptyRes = queryIndex(emptyIdx, 'test', 5);
+  assertEqual(emptyRes.length, 0, 'query on empty index returns empty');
+
+  // Single-doc vault still works
+  const singleVault = path.join(PROJECT_ROOT, 'test-single-vault');
+  const singleDir = path.join(singleVault, 'OpenCode', 'Learnings', '_global');
+  fs.mkdirSync(singleDir, { recursive: true });
+  fs.writeFileSync(path.join(singleDir, 'hello.md'), '---\ntype: learning\n---\nHello world content here.\n', 'utf8');
+  const singleIdx = buildIndex(singleVault);
+  assertEqual(singleIdx.docs.length, 1, 'single doc vault has 1 doc');
+  const singleRes = queryIndex(singleIdx, 'hello world', 5);
+  assertEqual(singleRes.length, 1, 'query on single doc returns 1 result');
+  assert(singleRes[0].similarity > 0, 'single doc similarity is positive');
+  // Cleanup
+  try { fs.rmSync(singleVault, { recursive: true }); } catch { /* noop */ }
+
+  // Umlaute tokenization — tokenizer normalizes ä/ö/ü to a/o/u
+  const umlTokens = tokenize('Änderung der Übertragung überprüft Öffnung');
+  assert(umlTokens.some(t => t.includes('anderung') || t.includes('ander')), 'umlaut ä handled');
+  assert(umlTokens.some(t => t.includes('ubertragung') || t.includes('uber')), 'umlaut ü handled');
+  assert(umlTokens.some(t => t.includes('offnung') || t.includes('offn')), 'umlaut ö handled');
+
+  // Stemmer handles hyphenated words
+  const hyphenTokens = tokenize('state-of-the-art Kubernetes-like');
+  assert(hyphenTokens.some(t => t.includes('state') || t.includes('art') || t.includes('kubernetes')), 'hyphenated words tokenized');
+
+  // cosineSimilarity with zero vectors
+  const zeroVec = new Float32Array([0, 0, 0]);
+  const unitVec = new Float32Array([1, 0, 0]);
+  assertEqual(cosineSimilarity(zeroVec, unitVec), 0, 'zero vector dot product is 0');
+  assertEqual(cosineSimilarity(unitVec, zeroVec), 0, 'zero vector dot product symmetric');
 });
 
 describe('v2.1: CLI Flag', () => {
@@ -589,11 +636,11 @@ describe('v2.5: Self-Update Command', () => {
 
 // ─── Summary ────────────────────────────────────────────
 
-console.log(`\n  ────────────────────────────────────────`);
+console.log('\n  ────────────────────────────────────────');
 console.log(`  Results: ${results.passed} passed, ${results.failed} failed`);
 
 if (results.errors.length > 0 && !process.argv.includes('--verbose')) {
-  console.log(`  \n  Failed tests (re-run with --verbose):`);
+  console.log('  \n  Failed tests (re-run with --verbose):');
   results.errors.forEach(e => {
     console.log(`    - ${e.message}`);
   });

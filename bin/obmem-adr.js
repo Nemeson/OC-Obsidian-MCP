@@ -27,12 +27,12 @@ function loadMcpEnv() {
     if (fs.existsSync(f)) {
       for (const line of fs.readFileSync(f, 'utf8').split(/\r?\n/)) {
         const t = line.trim();
-        if (!t || t.startsWith('#')) continue;
+        if (!t || t.startsWith('#')) {continue;}
         const eq = t.indexOf('=');
-        if (eq === -1) continue;
+        if (eq === -1) {continue;}
         const key = t.substring(0, eq).trim();
         const val = t.substring(eq + 1).trim();
-        if (!process.env[key]) process.env[key] = val;
+        if (!process.env[key]) {process.env[key] = val;}
       }
       break;
     }
@@ -78,12 +78,12 @@ function getGitMetadata() {
 
 function getNextAdrNumber(project) {
   const dir = path.join(VAULT_PATH, DECISIONS_FOLDER, project);
-  if (!fs.existsSync(dir)) return 1;
+  if (!fs.existsSync(dir)) {return 1;}
   const files = fs.readdirSync(dir).filter(f => f.startsWith('ADR-'));
   let max = 0;
   for (const f of files) {
     const match = f.match(/^ADR-(\d+)/);
-    if (match) max = Math.max(max, parseInt(match[1], 10));
+    if (match) {max = Math.max(max, parseInt(match[1], 10));}
   }
   return max + 1;
 }
@@ -96,15 +96,15 @@ function findRelatedNotes(project, keywords) {
   ];
 
   for (const dir of dirs) {
-    if (!fs.existsSync(dir)) continue;
+    if (!fs.existsSync(dir)) {continue;}
     for (const f of fs.readdirSync(dir)) {
-      if (!f.endsWith('.md')) continue;
+      if (!f.endsWith('.md')) {continue;}
       const content = fs.readFileSync(path.join(dir, f), 'utf8').toLowerCase();
       let score = 0;
       for (const kw of keywords) {
-        if (content.includes(kw.toLowerCase())) score++;
+        if (content.includes(kw.toLowerCase())) {score++;}
       }
-      if (score >= 2) results.push({ file: f, score });
+      if (score >= 2) {results.push({ file: f, score });}
     }
   }
   return results.sort((a, b) => b.score - a.score).slice(0, 5);
@@ -113,7 +113,7 @@ function findRelatedNotes(project, keywords) {
 // ─── ADR Template ───────────────────────────────────────
 function buildAdr(title, project, status, body) {
   const num = getNextAdrNumber(project);
-  const slug = slugify(title);
+  // const slug = slugify(title); // reserved for future filename format
   const keywords = title.split(/\s+/).filter(w => w.length > 3);
   const related = findRelatedNotes(project, keywords);
   const tags = detectTags(title, body || '');
@@ -130,8 +130,8 @@ function buildAdr(title, project, status, body) {
     `reuse_count: ${rel.reuse_count}`,
     `last_used: ${rel.last_used}`,
   ];
-  if (git.commit_hash) lines.push(`commit_hash: ${git.commit_hash}`);
-  if (git.changed_files && git.changed_files.length) lines.push(`scope: [${git.changed_files.map(f => `'${f}'`).join(', ')}]`);
+  if (git.commit_hash) {lines.push(`commit_hash: ${git.commit_hash}`);}
+  if (git.changed_files && git.changed_files.length) {lines.push(`scope: [${git.changed_files.map(f => `'${f}'`).join(', ')}]`);}
   lines.push('---');
   lines.push('');
   lines.push(`# ADR-${String(num).padStart(3, '0')}: ${title}`);
@@ -191,7 +191,7 @@ function main() {
 
   const { content, num, filename } = buildAdr(title, project, status, null);
   const dir = path.join(VAULT_PATH, DECISIONS_FOLDER, project);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  if (!fs.existsSync(dir)) {fs.mkdirSync(dir, { recursive: true });}
   const filePath = path.join(dir, filename);
   fs.writeFileSync(filePath, content, 'utf8');
 
